@@ -83,7 +83,6 @@ export default function Home() {
     }
     const data = await res.json();
     sttTaskIdRef.current = data.taskId;
-    console.log("[STT] started, taskId:", data.taskId);
   };
 
   const stopAgoraSTT = async () => {
@@ -107,7 +106,6 @@ export default function Home() {
       clientRef.current.on("stream-message", handleStreamMessage);
     }
     const assignedUid = await clientRef.current.join(appId, channel, token || null, null);
-    console.log("[Agora RTC] joined channel, uid:", assignedUid);
     micRef.current = await AgoraRTC.createMicrophoneAudioTrack();
     await clientRef.current.publish([micRef.current]);
 
@@ -161,7 +159,6 @@ export default function Home() {
     if (appState !== "listening") return;
     const finalTranscript = transcriptRef.current;
     setAppState("processing");
-    // Stop Agora in the background — don't block the processing step
     stopAgoraSTT().catch(console.error);
     stopAgora().catch(console.error);
     handleProcessing(finalTranscript);
@@ -210,7 +207,6 @@ export default function Home() {
     const match = matchQuery(text);
 
     if (match.isUnsupported) {
-      // Return to idle immediately, play audio in background
       restartProcess();
       playTTS(match.welcomeMessage);
       return;
@@ -252,18 +248,16 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-white text-slate-900 flex flex-col items-center justify-center p-8 overflow-hidden font-sans">
+    <main className="min-h-screen bg-white text-slate-900 font-sans flex flex-col items-center">
 
-      {/* ----------------- IDLE STATE ----------------- */}
+      {/* ── IDLE ─────────────────────────────────────────── */}
       {appState === "idle" && (
-        <div className="flex flex-col items-center animate-in fade-in duration-1000 zoom-in-95">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 w-full animate-in fade-in duration-700">
           <div className="mb-8 relative bg-blue-50 border border-blue-100 px-8 py-4 rounded-3xl shadow-lg">
-            <h1 className="text-4xl font-bold text-blue-800 tracking-tight">
-              Irashaimase!
-            </h1>
+            <h1 className="text-4xl font-bold text-blue-800 tracking-tight">Irashaimase!</h1>
             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-blue-50 border-r border-b border-blue-100 rotate-45"></div>
           </div>
-          <Mascot className="w-64 h-64 mb-12 animate-bounce hover:scale-105 transition-transform duration-300" />
+          <Mascot className="w-56 h-56 mb-10 animate-bounce" />
           {localError && (
             <div className="mb-6 flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-5 py-4 max-w-md">
               <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
@@ -280,69 +274,52 @@ export default function Home() {
         </div>
       )}
 
-      {/* ----------------- LISTENING / PROCESSING STATE ----------------- */}
+      {/* ── LISTENING / PROCESSING ───────────────────────── */}
       {(appState === "listening" || appState === "processing") && (
-        <div className="flex flex-col items-center animate-in fade-in duration-700 zoom-in-95">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 w-full animate-in fade-in duration-500">
           <div className="mb-8 relative bg-red-50 border border-red-100 px-8 py-4 rounded-3xl shadow-lg max-w-2xl text-center">
             <h2 className="text-3xl font-bold text-red-800 tracking-tight">
-              {appState === "listening"
-                ? "I am listening... Please speak clearly."
-                : "Processing your request..."}
+              {appState === "listening" ? "I am listening... Please speak clearly." : "Processing your request..."}
             </h2>
             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-red-50 border-r border-b border-red-100 rotate-45"></div>
           </div>
 
-          <Mascot className="w-48 h-48 mb-16 drop-shadow-md transition-transform duration-300" />
+          <Mascot className="w-40 h-40 mb-12 drop-shadow-md" />
 
-          {/* Microphone Button */}
           <div className="relative flex flex-col items-center justify-center">
             {appState === "listening" && isSpeaking && (
               <>
-                <div
-                  className="absolute w-64 h-64 bg-red-100 rounded-full animate-ping opacity-60"
-                  style={{ animationDuration: "1.5s" }}
-                ></div>
-                <div
-                  className="absolute w-48 h-48 bg-red-200 rounded-full animate-ping opacity-60"
-                  style={{ animationDelay: "0.2s", animationDuration: "1.2s" }}
-                ></div>
-                <div className="absolute w-32 h-32 bg-red-300 rounded-full animate-pulse"></div>
+                <div className="absolute w-56 h-56 bg-red-100 rounded-full animate-ping opacity-50" style={{ animationDuration: "1.5s" }}></div>
+                <div className="absolute w-44 h-44 bg-red-200 rounded-full animate-ping opacity-50" style={{ animationDelay: "0.2s", animationDuration: "1.2s" }}></div>
               </>
             )}
-
             {appState === "processing" && (
               <div className="absolute w-32 h-32 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin"></div>
             )}
-
             <button
               onClick={appState === "listening" ? forceStopListening : undefined}
               className={`relative z-10 w-32 h-32 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${
                 appState === "listening"
                   ? "bg-red-500 hover:bg-red-600 hover:scale-105 shadow-red-500/50 cursor-pointer"
-                  : "bg-slate-200 shadow-slate-200/50 cursor-default"
+                  : "bg-slate-200 cursor-default"
               }`}
             >
-              {appState === "listening" ? (
-                <Mic className="w-16 h-16 text-white animate-pulse" />
-              ) : (
-                <Mascot className="w-16 h-16 opacity-50 grayscale" />
-              )}
+              {appState === "listening"
+                ? <Mic className="w-14 h-14 text-white animate-pulse" />
+                : <Mascot className="w-14 h-14 opacity-40 grayscale" />
+              }
             </button>
           </div>
 
-          {/* Live Transcript */}
-          <div className="mt-8 min-h-24 flex flex-col items-center justify-start text-center max-w-2xl px-8 w-full">
+          {/* Live transcript */}
+          <div className="mt-8 min-h-20 flex flex-col items-center justify-start text-center max-w-2xl px-8 w-full">
             {transcript ? (
-              <p className="text-2xl text-slate-700 italic font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-2">
+              <p className="text-2xl text-slate-700 italic font-medium leading-relaxed animate-in fade-in">
                 &quot;{transcript}&quot;
               </p>
-            ) : (
-              appState === "listening" && (
-                <p className="text-lg text-slate-400 font-medium animate-pulse">
-                  Listening...
-                </p>
-              )
-            )}
+            ) : appState === "listening" ? (
+              <p className="text-lg text-slate-400 animate-pulse">Listening...</p>
+            ) : null}
           </div>
 
           {appState === "listening" && (
@@ -350,56 +327,66 @@ export default function Home() {
               onClick={forceStopListening}
               size="lg"
               variant="destructive"
-              className="mt-16 px-8 py-6 rounded-full shadow-lg text-xl flex items-center gap-3 hover:scale-105 transition-transform"
+              className="mt-10 px-8 py-6 rounded-full shadow-lg text-xl flex items-center gap-3 hover:scale-105 transition-transform"
             >
               <Square className="w-6 h-6 fill-current" />
               Stop Recording
             </Button>
           )}
 
-          <Button
-            variant="ghost"
-            onClick={restartProcess}
-            className="mt-8 text-slate-500 hover:text-slate-800"
-          >
+          <Button variant="ghost" onClick={restartProcess} className="mt-6 text-slate-500 hover:text-slate-800">
             Cancel
           </Button>
         </div>
       )}
 
-      {/* ----------------- RESULT STATE ----------------- */}
+      {/* ── RESULT ───────────────────────────────────────── */}
       {appState === "result" && matchedIntent && (
-        <div className="flex flex-col lg:flex-row w-full h-auto lg:h-[90vh] max-w-7xl gap-4 lg:gap-8 animate-in slide-in-from-bottom-8 duration-700 px-4 lg:px-0">
-          {/* Left Side: Mascot */}
-          <div className="w-full lg:w-1/4 flex flex-col items-center justify-center bg-slate-50/50 rounded-3xl p-6 lg:p-8 border border-slate-100 shadow-sm relative overflow-hidden mb-6 lg:mb-0">
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-50 to-blue-50 opacity-50 z-0"></div>
+        <div className="w-full max-w-6xl px-4 md:px-8 py-8 flex flex-col lg:flex-row gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-            <div className="z-10 flex flex-col items-center">
-              <div className="mb-4 lg:mb-6 relative bg-white border border-slate-100 px-4 lg:px-6 py-3 lg:py-4 rounded-3xl shadow-sm cursor-default text-center">
-                <p className="text-sm font-medium text-slate-500 mb-1">
-                  Your prompt:
-                </p>
-                <p className="text-sm lg:text-md font-bold text-slate-700 italic">
-                  &quot;{transcript}&quot;
-                </p>
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-r border-b border-slate-100 rotate-45"></div>
-              </div>
-              <Mascot className={`w-32 h-32 lg:w-40 lg:h-40 drop-shadow-sm ${isSpeakingTTS ? "animate-bounce" : ""}`} />
+          {/* Left sidebar — Mascot */}
+          <div className="lg:w-64 shrink-0 flex flex-col items-center bg-gradient-to-b from-blue-50 to-purple-50 rounded-3xl border border-slate-100 shadow-sm p-6 gap-4">
+            <div className="flex flex-col items-center gap-4 w-full">
+              {/* Speech bubble with transcript */}
+              {transcript && (
+                <div className="relative bg-white border border-slate-100 rounded-2xl px-4 py-3 shadow-sm w-full text-center">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">You said</p>
+                  <p className="text-sm font-medium text-slate-700 italic leading-snug">
+                    &quot;{transcript}&quot;
+                  </p>
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-r border-b border-slate-100 rotate-45" />
+                </div>
+              )}
+
+              <Mascot className={`w-40 h-40 drop-shadow-md ${isSpeakingTTS ? "animate-bounce" : ""}`} />
+
+              {isSpeakingTTS && (
+                <div className="flex items-center gap-1.5 text-blue-500 text-sm font-medium">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <span className="ml-1">Speaking</span>
+                </div>
+              )}
             </div>
 
             <Button
               variant="outline"
               onClick={restartProcess}
-              className="mt-auto z-10 w-full rounded-xl bg-white hover:bg-slate-50 border-slate-200 text-sm lg:text-base"
+              className="mt-auto w-full rounded-2xl bg-white hover:bg-slate-50 border-slate-200 font-medium"
             >
               Ask Another Question
             </Button>
           </div>
 
-          {/* Right Side: Action Interface */}
-          <div className="w-full lg:w-3/4 h-full flex flex-col">
-            <ActionInterface match={matchedIntent} onRestart={restartProcess} />
+          {/* Right side — Steps */}
+          <div className="flex-1 min-w-0">
+            <ActionInterface
+              match={matchedIntent}
+              onRestart={restartProcess}
+            />
           </div>
+
         </div>
       )}
     </main>
