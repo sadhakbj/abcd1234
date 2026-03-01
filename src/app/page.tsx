@@ -265,7 +265,7 @@ export default function Home() {
           <div className="flex flex-col items-center mb-8">
             <div className="relative bg-blue-50 border border-blue-100 px-10 py-5 rounded-3xl shadow-lg text-center mb-2">
               <p className="text-3xl font-bold text-blue-700 tracking-tight leading-snug">いらっしゃいませ</p>
-              <p className="text-base font-medium text-blue-500 mt-1 tracking-widest">Irashaimase!</p>
+              <p className="text-base font-medium text-blue-500 mt-1 tracking-widest">Welcome!</p>
               <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-blue-50 border-r border-b border-blue-100 rotate-45"></div>
             </div>
             <Mascot className="w-52 h-52 mt-4 animate-bounce drop-shadow-md" />
@@ -280,7 +280,7 @@ export default function Home() {
               <p className="text-sm font-bold text-slate-700">Voice Guide Assistant</p>
             </div>
             <p className="text-sm text-slate-500 leading-relaxed">
-              I can help you with <span className="font-semibold text-slate-700">address change procedures</span> for residents moving into Kita-ku. Press <span className="font-semibold text-slate-700">Begin</span> and tell me how I can help you.
+              Hi, I am your digital guide, and I can help you <span className="font-semibold text-slate-700">finish your ward office</span> operations smoothly and stress-free. <span className="font-semibold text-slate-700">Tell me how I can help you.</span>
             </p>
           </div>
 
@@ -327,11 +327,10 @@ export default function Home() {
             )}
             <button
               onClick={appState === "listening" ? forceStopListening : undefined}
-              className={`relative z-10 w-32 h-32 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${
-                appState === "listening"
-                  ? "bg-red-500 hover:bg-red-600 hover:scale-105 shadow-red-500/50 cursor-pointer"
-                  : "bg-slate-200 cursor-default"
-              }`}
+              className={`relative z-10 w-32 h-32 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${appState === "listening"
+                ? "bg-red-500 hover:bg-red-600 hover:scale-105 shadow-red-500/50 cursor-pointer"
+                : "bg-slate-200 cursor-default"
+                }`}
             >
               {appState === "listening"
                 ? <Mic className="w-14 h-14 text-white animate-pulse" />
