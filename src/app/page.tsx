@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { IntentMatch, matchQuery } from "@/lib/knowledgeBase";
 import { agora } from "@/lib/stt-message";
 import type { IAgoraRTCClient, ILocalAudioTrack } from "agora-rtc-sdk-ng";
-import { AlertCircle, Mic, Square } from "lucide-react";
+import { AlertCircle, BotMessageSquare, MapPin, Mic, RefreshCw, Square, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-type AppState = "idle" | "listening" | "processing" | "result";
+type AppState = "idle" | "listening" | "processing" | "result" | "unsupported";
 
 export default function Home() {
   const [appState, setAppState] = useState<AppState>("idle");
@@ -207,7 +207,8 @@ export default function Home() {
     const match = matchQuery(text);
 
     if (match.isUnsupported) {
-      restartProcess();
+      setMatchedIntent(match);
+      setAppState("unsupported");
       playTTS(match.welcomeMessage);
       return;
     }
@@ -252,25 +253,53 @@ export default function Home() {
 
       {/* ── IDLE ─────────────────────────────────────────── */}
       {appState === "idle" && (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 w-full animate-in fade-in duration-700">
-          <div className="mb-8 relative bg-blue-50 border border-blue-100 px-8 py-4 rounded-3xl shadow-lg">
-            <h1 className="text-4xl font-bold text-blue-800 tracking-tight">Irashaimase!</h1>
-            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-blue-50 border-r border-b border-blue-100 rotate-45"></div>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 w-full animate-in fade-in duration-700">
+
+          {/* Office badge */}
+          <div className="flex items-center gap-2 bg-blue-600 text-white text-sm font-semibold px-5 py-2 rounded-full shadow-md mb-6 tracking-wide">
+            <MapPin className="w-4 h-4" />
+            北区役所 · Kita-ku Kuyakusho
           </div>
-          <Mascot className="w-56 h-56 mb-10 animate-bounce" />
+
+          {/* Speech bubble + mascot */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="relative bg-blue-50 border border-blue-100 px-10 py-5 rounded-3xl shadow-lg text-center mb-2">
+              <p className="text-3xl font-bold text-blue-700 tracking-tight leading-snug">いらっしゃいませ</p>
+              <p className="text-base font-medium text-blue-500 mt-1 tracking-widest">Irashaimase!</p>
+              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-blue-50 border-r border-b border-blue-100 rotate-45"></div>
+            </div>
+            <Mascot className="w-52 h-52 mt-4 animate-bounce drop-shadow-md" />
+          </div>
+
+          {/* Info card */}
+          <div className="w-full max-w-sm bg-slate-50 border border-slate-200 rounded-3xl p-5 mb-7 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                <BotMessageSquare className="w-5 h-5 text-blue-600" />
+              </div>
+              <p className="text-sm font-bold text-slate-700">Voice Guide Assistant</p>
+            </div>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              I can help you with <span className="font-semibold text-slate-700">address change procedures</span> for residents moving into Kita-ku. Press <span className="font-semibold text-slate-700">Begin</span> and tell me how I can help you.
+            </p>
+          </div>
+
           {localError && (
-            <div className="mb-6 flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-5 py-4 max-w-md">
+            <div className="mb-5 flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-5 py-4 max-w-sm w-full">
               <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
               <p className="text-sm text-red-700">{localError}</p>
             </div>
           )}
+
           <Button
             size="lg"
             onClick={startListening}
-            className="text-2xl px-16 py-8 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 hover:scale-105 transition-all duration-300"
+            className="text-xl px-14 py-7 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 hover:scale-105 transition-all duration-300 flex items-center gap-3"
           >
+            <Mic className="w-6 h-6" />
             Begin
           </Button>
+
         </div>
       )}
 
@@ -337,6 +366,55 @@ export default function Home() {
           <Button variant="ghost" onClick={restartProcess} className="mt-6 text-slate-500 hover:text-slate-800">
             Cancel
           </Button>
+        </div>
+      )}
+
+      {/* ── UNSUPPORTED ──────────────────────────────────── */}
+      {appState === "unsupported" && matchedIntent && (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 w-full animate-in fade-in duration-500">
+          <div className="w-full max-w-md flex flex-col items-center text-center">
+
+            {/* Icon */}
+            <div className="w-20 h-20 rounded-3xl bg-orange-100 border border-orange-200 flex items-center justify-center mb-6 shadow-sm">
+              <XCircle className="w-10 h-10 text-orange-500" />
+            </div>
+
+            {/* Mascot */}
+            <Mascot className={`w-36 h-36 mb-6 drop-shadow-md ${isSpeakingTTS ? "animate-bounce" : ""}`} />
+
+            {/* Speaking indicator */}
+            {isSpeakingTTS && (
+              <div className="flex items-center gap-1.5 text-orange-500 text-sm font-medium mb-4">
+                <span className="w-2 h-2 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-2 h-2 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-2 h-2 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "300ms" }} />
+                <span className="ml-1">Speaking</span>
+              </div>
+            )}
+
+            {/* Message card */}
+            <div className="bg-orange-50 border border-orange-200 rounded-3xl px-8 py-6 mb-6 shadow-sm w-full">
+              <p className="text-lg font-semibold text-orange-800 leading-relaxed">
+                {matchedIntent.welcomeMessage}
+              </p>
+              {transcript && (
+                <p className="text-sm text-orange-600 mt-3 italic">
+                  You asked: &quot;{transcript}&quot;
+                </p>
+              )}
+            </div>
+
+            {/* Restart button */}
+            <Button
+              size="lg"
+              onClick={restartProcess}
+              className="px-10 py-6 rounded-full bg-blue-600 hover:bg-blue-700 hover:scale-105 text-white text-lg font-semibold shadow-lg transition-all duration-300 flex items-center gap-3"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Start New Request
+            </Button>
+
+          </div>
         </div>
       )}
 
