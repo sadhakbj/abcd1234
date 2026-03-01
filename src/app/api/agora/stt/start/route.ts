@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         name: agentName,
-        languages: ["en-US"],
+        languages: ["en-US", "ja-JP"],
         maxIdleTime: 60,
         rtcConfig,
       }),

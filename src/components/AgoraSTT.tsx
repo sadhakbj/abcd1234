@@ -2,14 +2,7 @@
 import { useRTCClient } from "agora-rtc-react";
 import AgoraRTC, { IMicrophoneAudioTrack } from "agora-rtc-sdk-ng";
 import { useEffect, useRef, useState } from "react";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let AgoraRTM: any = null;
 
-if (typeof window !== "undefined") {
-  import("agora-rtm-sdk").then((mod) => {
-    AgoraRTM = mod.default || mod;
-  });
-}
 interface AgoraSTTProps {
   appId: string;
   channel: string;
@@ -58,62 +51,7 @@ export default function AgoraSTT({
         setIsJoined(true);
         console.log("[AgoraSTT] Joined channel");
 
-        // --- RTM Initialization ---
-        // Agora STT results are sometimes sent via RTM (Real-time Messaging)
-        // especially if using certain cloud transcription modes.
-        // Let's try to connect RTM as well using the same AppID and a generated UID (or same UID).
-        // RTM requires string UID.
-        if (AgoraRTM) {
-          const rtmClient = AgoraRTM.createInstance(appId);
-          const rtmUid = String(uid);
 
-          // Note: RTM requires its own token if App Certificate is enabled.
-          // Re-using the RTC token *might* work if it's a wildcard token, but usually RTM has separate tokens.
-          // For testing "BPK" channel with the provided temp token, let's see if we can login.
-          // If this fails, we might need to skip RTM or generate a specific RTM token.
-          try {
-            await rtmClient.login({ uid: rtmUid, token: token || undefined });
-            console.log("[AgoraSTT] RTM Login success");
-
-            const rtmChannel = rtmClient.createChannel(channel);
-            await rtmChannel.join();
-            console.log("[AgoraSTT] RTM Channel joined");
-
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            rtmChannel.on(
-              "ChannelMessage",
-              (message: any, memberId: string) => {
-                console.log(
-                  "[AgoraSTT] RTM Message from " + memberId + ":",
-                  message,
-                );
-                if (message.text) {
-                  try {
-                    const json = JSON.parse(message.text);
-                    // RTM message format might differ
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const transcript =
-                      json.text ||
-                      json.words?.map((w: any) => w.text).join(" ") ||
-                      message.text;
-                    const isFinal = json.isFinal || json.is_final || false;
-                    onTranscript(transcript, isFinal);
-                  } catch {
-                    onTranscript(message.text, false);
-                  }
-                }
-              },
-            );
-          } catch (rtmErr) {
-            console.warn(
-              "[AgoraSTT] RTM Init Failed (might need separate token):",
-              rtmErr,
-            );
-          }
-        } else {
-          console.warn("[AgoraSTT] AgoraRTM SDK not loaded yet.");
-        }
-        // --- End RTM ---
 
         // 2. Create Microphone Track
         const track = await AgoraRTC.createMicrophoneAudioTrack();

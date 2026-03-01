@@ -4,14 +4,10 @@ import { ActionInterface } from "@/components/ActionInterface";
 import { Mascot } from "@/components/Mascot";
 import { Button } from "@/components/ui/button";
 import { IntentMatch, matchQuery } from "@/lib/knowledgeBase";
-import { Mic, Square } from "lucide-react";
-import dynamic from "next/dynamic";
+import { agora } from "@/lib/stt-message";
+import type { IAgoraRTCClient, ILocalAudioTrack } from "agora-rtc-sdk-ng";
+import { AlertCircle, Mic, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
-const AgoraSTT = dynamic(() => import("@/components/AgoraSTT"), { ssr: false });
-const AgoraWrapper = dynamic(() => import("@/components/AgoraWrapper"), {
-  ssr: false,
-});
 
 type AppState = "idle" | "listening" | "processing" | "result";
 
@@ -21,130 +17,208 @@ export default function Home() {
   const [matchedIntent, setMatchedIntent] = useState<IntentMatch | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isSpeakingTTS, setIsSpeakingTTS] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Agora State
-  const [agoraToken, setAgoraToken] = useState<string | null>(null);
-  const [agoraUid, setAgoraUid] = useState<number>(0);
-  const [channelName, setChannelName] = useState<string>("");
-  const [audioLevel, setAudioLevel] = useState<number>(0);
-  const appId =
-    process.env.NEXT_PUBLIC_AGORA_APP_ID || "2247f11d00e744869a06fae8c40130f9"; // Fallback for demo
-
-  // Audio Recording & Playing Refs
-  const transcriptRef = useRef<string>("");
+  const clientRef = useRef<IAgoraRTCClient | null>(null);
+  const micRef = useRef<ILocalAudioTrack | null>(null);
+  const volumeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const speakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sttTaskIdRef = useRef<string | null>(null);
+  const transcriptRef = useRef("");
+  const interimRef = useRef("");
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
 
+  const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID ?? "";
+  const channel = process.env.NEXT_PUBLIC_AGORA_CHANNEL ?? "test";
+  const token = process.env.NEXT_PUBLIC_AGORA_TOKEN ?? null;
+
   useEffect(() => {
     setIsMounted(true);
+    return () => {
+      stopAgoraSTT();
+      stopAgora();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleStreamMessage = (_uid: number, payload: Uint8Array) => {
+    try {
+      const msg = agora.audio.stt.Text.decode(payload);
+      if (!msg.words || msg.words.length === 0) return;
+
+      let isFinal = false;
+      let currentText = "";
+      msg.words.forEach((word) => {
+        if (word.isFinal) isFinal = true;
+        currentText += word.text;
+      });
+
+      if (isFinal) {
+        transcriptRef.current = (transcriptRef.current + " " + currentText).trim();
+        interimRef.current = "";
+      } else {
+        interimRef.current = currentText;
+      }
+
+      const full = (transcriptRef.current + " " + interimRef.current).trim();
+      setTranscript(full);
+    } catch (e) {
+      console.error("[STT] stream message decode error:", e);
+    }
+  };
+
+  const startAgoraSTT = async (userUid: string) => {
+    const res = await fetch("/api/agora/stt/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channelName: channel, userUid }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(
+        `STT start failed (${res.status}): ${errorData.details || errorData.error || res.statusText}`
+      );
+    }
+    const data = await res.json();
+    sttTaskIdRef.current = data.taskId;
+    console.log("[STT] started, taskId:", data.taskId);
+  };
+
+  const stopAgoraSTT = async () => {
+    if (!sttTaskIdRef.current) return;
+    try {
+      await fetch("/api/agora/stt/stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId: sttTaskIdRef.current }),
+      });
+      sttTaskIdRef.current = null;
+    } catch (error) {
+      console.error("Error stopping Agora STT:", error);
+    }
+  };
+
+  const startAgora = async (): Promise<string> => {
+    const { default: AgoraRTC } = await import("agora-rtc-sdk-ng");
+    if (!clientRef.current) {
+      clientRef.current = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+      clientRef.current.on("stream-message", handleStreamMessage);
+    }
+    const assignedUid = await clientRef.current.join(appId, channel, token || null, null);
+    console.log("[Agora RTC] joined channel, uid:", assignedUid);
+    micRef.current = await AgoraRTC.createMicrophoneAudioTrack();
+    await clientRef.current.publish([micRef.current]);
+
+    volumeIntervalRef.current = setInterval(() => {
+      if (micRef.current) {
+        const volume = micRef.current.getVolumeLevel();
+        if (volume > 0.15) {
+          setIsSpeaking(true);
+          if (speakingTimeoutRef.current) clearTimeout(speakingTimeoutRef.current);
+          speakingTimeoutRef.current = setTimeout(() => setIsSpeaking(false), 500);
+        }
+      }
+    }, 100);
+
+    return String(assignedUid);
+  };
+
+  const stopAgora = async () => {
+    if (volumeIntervalRef.current) { clearInterval(volumeIntervalRef.current); volumeIntervalRef.current = null; }
+    if (speakingTimeoutRef.current) { clearTimeout(speakingTimeoutRef.current); speakingTimeoutRef.current = null; }
+    setIsSpeaking(false);
+    if (clientRef.current) {
+      if (micRef.current) {
+        try { await clientRef.current.unpublish([micRef.current]); } catch { }
+        try { micRef.current.close(); } catch { }
+        micRef.current = null;
+      }
+      try { await clientRef.current.leave(); } catch { }
+    }
+  };
 
   const startListening = async () => {
     setAppState("listening");
     setLocalError(null);
     setTranscript("");
     transcriptRef.current = "";
+    interimRef.current = "";
 
-    // Use hardcoded values for testing
-    const uid = 0;
-    const channel = "BPK";
-    const token =
-      "007eJxTYHg+KU9C7f+XHgbzotPHGrRvfsz7OVXzUrmixSNpzmXNKvsUGIyMTMzTDA1TDAxSzU1MLMwsEw3M0hJTLZJNDAyNDdIsX/5ZnNkQyMhw4o4hAyMUgvjMDE4B3gwMAGquH+U=";
-
-    setAgoraUid(uid);
-    setChannelName(channel);
-    setAgoraToken(token);
-
-    // Skip fetching token from API since we have a hardcoded one
-    /*
     try {
-      const res = await fetch(
-        `/api/agora/token?channelName=${channel}&uid=${uid}`,
-      );
-      const data = await res.json();
-      if (data.token) {
-        setAgoraToken(data.token);
-      } else {
-        throw new Error(data.error || "Failed to get token");
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      console.error("Error starting Agora:", err);
-      setLocalError("Failed to initialize speech service.");
+      const uid = await startAgora();
+      await startAgoraSTT(uid);
+    } catch (e: unknown) {
+      console.error("[STT] setup error:", e);
+      setLocalError((e as Error)?.message ?? "Failed to start recording");
       setAppState("idle");
+      await stopAgora();
     }
-    */
-  };
-
-  const handleAgoraTranscript = (text: string, isFinal: boolean) => {
-    setTranscript(text);
-    transcriptRef.current = text;
-
-    // If user wants "when user stops talking", usually Agora sends isFinal=true for sentence end
-    // Or we can rely on manual stop.
-    // For now, let's just log it as requested.
-    console.log("Agora Transcript:", text, "Final:", isFinal);
   };
 
   const forceStopListening = () => {
-    if (appState === "listening") {
-      setAppState("processing");
-      handleProcessing(transcriptRef.current);
-    }
+    if (appState !== "listening") return;
+    const finalTranscript = transcriptRef.current;
+    setAppState("processing");
+    // Stop Agora in the background — don't block the processing step
+    stopAgoraSTT().catch(console.error);
+    stopAgora().catch(console.error);
+    handleProcessing(finalTranscript);
   };
 
-  const playTTS = async (textToSpeak: string) => {
-    try {
-      setIsSpeaking(true);
-      const res = await fetch("/api/minimax/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: textToSpeak }),
-      });
+  const playTTS = async (textToSpeak: string): Promise<void> => {
+    return new Promise(async (resolve) => {
+      try {
+        setIsSpeakingTTS(true);
+        const res = await fetch("/api/minimax/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: textToSpeak }),
+        });
 
-      if (!res.ok) throw new Error("TTS Failed");
+        if (!res.ok) throw new Error("TTS Failed");
 
-      const arrayBuffer = await res.arrayBuffer();
+        const arrayBuffer = await res.arrayBuffer();
 
-      // Decode audio data using browser's AudioContext
-      if (!audioContextRef.current) {
-        audioContextRef.current =
-          new // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (window.AudioContext || (window as any).webkitAudioContext)();
+        if (!audioContextRef.current) {
+          audioContextRef.current =
+            new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        }
+        const audioCtx = audioContextRef.current;
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+        source.onended = () => {
+          setIsSpeakingTTS(false);
+          resolve();
+        };
+
+        audioSourceRef.current = source;
+        source.start(0);
+      } catch (error) {
+        console.error("Failed to play TTS:", error);
+        setIsSpeakingTTS(false);
+        resolve();
       }
-      const audioCtx = audioContextRef.current;
-      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-
-      const source = audioCtx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(audioCtx.destination);
-      source.onended = () => setIsSpeaking(false);
-
-      audioSourceRef.current = source;
-      source.start(0);
-    } catch (error) {
-      console.error("Failed to play TTS:", error);
-      setIsSpeaking(false);
-    }
+    });
   };
 
   const handleProcessing = async (text: string) => {
-    // If it's already processing, don't trigger it again
-    if (appState === "processing") return;
+    const match = matchQuery(text);
 
-    setAppState("processing");
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // DEMO FORCE: Always return moving in intent
-    // const match = matchQuery(text);
-    const match = matchQuery("I moved to this new place");
+    if (match.isUnsupported) {
+      // Return to idle immediately, play audio in background
+      restartProcess();
+      playTTS(match.welcomeMessage);
+      return;
+    }
 
     setMatchedIntent(match);
     setAppState("result");
 
-    // Play Mascot Voice using Minimax
-    // Construct full speech: Welcome message + details of steps
     let fullSpeech = match.welcomeMessage;
     if (match.steps.length > 0) {
       fullSpeech += " Here is what you need to do. ";
@@ -158,14 +232,13 @@ export default function Home() {
 
   const restartProcess = () => {
     if (audioSourceRef.current) {
-      try {
-        audioSourceRef.current.stop();
-      } catch (e) {}
+      try { audioSourceRef.current.stop(); } catch { }
     }
-    setIsSpeaking(false);
+    setIsSpeakingTTS(false);
     setAppState("idle");
     setTranscript("");
     transcriptRef.current = "";
+    interimRef.current = "";
     setMatchedIntent(null);
     setLocalError(null);
   };
@@ -180,19 +253,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-white text-slate-900 flex flex-col items-center justify-center p-8 overflow-hidden font-sans">
-      {/* Agora STT Component - Renders only when listening and token is ready */}
-      {appState === "listening" && agoraToken && (
-        <AgoraWrapper>
-          <AgoraSTT
-            appId={appId}
-            channel={channelName}
-            token={agoraToken}
-            uid={agoraUid}
-            onTranscript={handleAgoraTranscript}
-            onVolumeLevel={setAudioLevel}
-          />
-        </AgoraWrapper>
-      )}
 
       {/* ----------------- IDLE STATE ----------------- */}
       {appState === "idle" && (
@@ -204,6 +264,12 @@ export default function Home() {
             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-blue-50 border-r border-b border-blue-100 rotate-45"></div>
           </div>
           <Mascot className="w-64 h-64 mb-12 animate-bounce hover:scale-105 transition-transform duration-300" />
+          {localError && (
+            <div className="mb-6 flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-5 py-4 max-w-md">
+              <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-red-700">{localError}</p>
+            </div>
+          )}
           <Button
             size="lg"
             onClick={startListening}
@@ -217,34 +283,20 @@ export default function Home() {
       {/* ----------------- LISTENING / PROCESSING STATE ----------------- */}
       {(appState === "listening" || appState === "processing") && (
         <div className="flex flex-col items-center animate-in fade-in duration-700 zoom-in-95">
-          {localError ? (
-            <div className="mb-8 relative bg-red-100 border border-red-300 px-8 py-6 rounded-3xl shadow-lg max-w-2xl text-center">
-              <h2 className="text-2xl font-bold text-red-800 tracking-tight mb-2">
-                Microphone Error
-              </h2>
-              <p className="text-red-700 font-medium break-words whitespace-pre-wrap text-left text-sm max-h-64 overflow-y-auto">
-                {localError}
-              </p>
-              <p className="text-sm mt-4 text-red-600">
-                Please check your browser permissions.
-              </p>
-            </div>
-          ) : (
-            <div className="mb-8 relative bg-red-50 border border-red-100 px-8 py-4 rounded-3xl shadow-lg max-w-2xl text-center">
-              <h2 className="text-3xl font-bold text-red-800 tracking-tight">
-                {appState === "listening"
-                  ? "I am listening... Please speak clearly."
-                  : "Processing your request..."}
-              </h2>
-              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-red-50 border-r border-b border-red-100 rotate-45"></div>
-            </div>
-          )}
+          <div className="mb-8 relative bg-red-50 border border-red-100 px-8 py-4 rounded-3xl shadow-lg max-w-2xl text-center">
+            <h2 className="text-3xl font-bold text-red-800 tracking-tight">
+              {appState === "listening"
+                ? "I am listening... Please speak clearly."
+                : "Processing your request..."}
+            </h2>
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-red-50 border-r border-b border-red-100 rotate-45"></div>
+          </div>
 
           <Mascot className="w-48 h-48 mb-16 drop-shadow-md transition-transform duration-300" />
 
-          {/* Large Microphone Interface */}
+          {/* Microphone Button */}
           <div className="relative flex flex-col items-center justify-center">
-            {appState === "listening" && audioLevel > 0.1 && (
+            {appState === "listening" && isSpeaking && (
               <>
                 <div
                   className="absolute w-64 h-64 bg-red-100 rounded-full animate-ping opacity-60"
@@ -258,29 +310,19 @@ export default function Home() {
               </>
             )}
 
-            {appState === "processing" && !localError && (
+            {appState === "processing" && (
               <div className="absolute w-32 h-32 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin"></div>
             )}
 
             <button
-              onClick={
-                localError
-                  ? restartProcess
-                  : appState === "listening"
-                    ? forceStopListening
-                    : undefined
-              }
+              onClick={appState === "listening" ? forceStopListening : undefined}
               className={`relative z-10 w-32 h-32 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${
-                localError
-                  ? "bg-red-800 hover:bg-red-900 shadow-red-900/50 cursor-pointer"
-                  : appState === "listening"
-                    ? "bg-red-500 hover:bg-red-600 hover:scale-105 shadow-red-500/50 cursor-pointer"
-                    : "bg-slate-200 shadow-slate-200/50 cursor-default"
+                appState === "listening"
+                  ? "bg-red-500 hover:bg-red-600 hover:scale-105 shadow-red-500/50 cursor-pointer"
+                  : "bg-slate-200 shadow-slate-200/50 cursor-default"
               }`}
             >
-              {localError ? (
-                <Mic className="w-16 h-16 text-red-300 opacity-50" />
-              ) : appState === "listening" ? (
+              {appState === "listening" ? (
                 <Mic className="w-16 h-16 text-white animate-pulse" />
               ) : (
                 <Mascot className="w-16 h-16 opacity-50 grayscale" />
@@ -288,8 +330,8 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Transcript Display Below Microphone */}
-          <div className="mt-8 min-h-24 flex flex-col items-center justify-start text-center max-w-2xl px-8">
+          {/* Live Transcript */}
+          <div className="mt-8 min-h-24 flex flex-col items-center justify-start text-center max-w-2xl px-8 w-full">
             {transcript ? (
               <p className="text-2xl text-slate-700 italic font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-2">
                 &quot;{transcript}&quot;
@@ -328,7 +370,7 @@ export default function Home() {
       {/* ----------------- RESULT STATE ----------------- */}
       {appState === "result" && matchedIntent && (
         <div className="flex flex-col lg:flex-row w-full h-auto lg:h-[90vh] max-w-7xl gap-4 lg:gap-8 animate-in slide-in-from-bottom-8 duration-700 px-4 lg:px-0">
-          {/* Left Side: Mascot Contextually Placed */}
+          {/* Left Side: Mascot */}
           <div className="w-full lg:w-1/4 flex flex-col items-center justify-center bg-slate-50/50 rounded-3xl p-6 lg:p-8 border border-slate-100 shadow-sm relative overflow-hidden mb-6 lg:mb-0">
             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-50 to-blue-50 opacity-50 z-0"></div>
 
@@ -342,7 +384,7 @@ export default function Home() {
                 </p>
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-r border-b border-slate-100 rotate-45"></div>
               </div>
-              <Mascot className="w-32 h-32 lg:w-40 lg:h-40 drop-shadow-sm" />
+              <Mascot className={`w-32 h-32 lg:w-40 lg:h-40 drop-shadow-sm ${isSpeakingTTS ? "animate-bounce" : ""}`} />
             </div>
 
             <Button
@@ -354,7 +396,7 @@ export default function Home() {
             </Button>
           </div>
 
-          {/* Right Side: Action Interface (Steps) */}
+          {/* Right Side: Action Interface */}
           <div className="w-full lg:w-3/4 h-full flex flex-col">
             <ActionInterface match={matchedIntent} onRestart={restartProcess} />
           </div>
