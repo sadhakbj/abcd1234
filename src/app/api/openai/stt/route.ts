@@ -6,6 +6,7 @@ export async function POST(request: Request) {
     const openai = new OpenAI();
     const formData = await request.formData();
     const file = formData.get("file");
+    const language = formData.get("language") as string | null;
 
     if (!file || !(file instanceof Blob)) {
       return NextResponse.json(
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
+      ...(language ? { language } : {}),
     });
 
     return NextResponse.json({ text: transcription.text });

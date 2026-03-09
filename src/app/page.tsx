@@ -3,14 +3,15 @@
 import { ActionInterface } from "@/components/ActionInterface";
 import { Mascot } from "@/components/Mascot";
 import { Button } from "@/components/ui/button";
-import { IntentMatch, matchQuery } from "@/lib/knowledgeBase";
-import { AlertCircle, BotMessageSquare, MapPin, Mic, RefreshCw, XCircle } from "lucide-react";
+import { IntentMatch, LANGUAGES, type SupportedLang, matchQuery } from "@/lib/knowledgeBase";
+import { AlertCircle, BotMessageSquare, Globe, MapPin, Mic, RefreshCw, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type AppState = "idle" | "listening" | "processing" | "result" | "unsupported";
 
 export default function Home() {
   const [appState, setAppState] = useState<AppState>("idle");
+  const [selectedLang, setSelectedLang] = useState<SupportedLang>("en");
   const [transcript, setTranscript] = useState("");
   const [liveTranscript, setLiveTranscript] = useState("");
   const [volumeLevel, setVolumeLevel] = useState(0);
@@ -30,7 +31,11 @@ export default function Home() {
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const liveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isTranscribingRef = useRef(false);
-  const isRecordingRef = useRef(false);
+  const selectedLangRef = useRef<SupportedLang>(selectedLang);
+
+  useEffect(() => {
+    selectedLangRef.current = selectedLang;
+  }, [selectedLang]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -40,9 +45,18 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const transcribeAudio = useCallback(async (audioBlob: Blob): Promise<string> => {
+  const getAudioContext = () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current =
+        new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    }
+    return audioContextRef.current;
+  };
+
+  const transcribeAudio = useCallback(async (audioBlob: Blob, lang: SupportedLang): Promise<string> => {
     const formData = new FormData();
     formData.append("file", audioBlob, "recording.webm");
+    formData.append("language", lang);
 
     const res = await fetch("/api/openai/stt", {
       method: "POST",
@@ -57,6 +71,33 @@ export default function Home() {
     const data = await res.json();
     return data.text || "";
   }, []);
+
+  const preloadAudio = async (text: string): Promise<AudioBuffer> => {
+    const res = await fetch("/api/openai/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!res.ok) throw new Error("TTS Failed");
+
+    const arrayBuffer = await res.arrayBuffer();
+    const audioCtx = getAudioContext();
+    return audioCtx.decodeAudioData(arrayBuffer);
+  };
+
+  const playAudio = (buffer: AudioBuffer) => {
+    const audioCtx = getAudioContext();
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.onended = () => {
+      setIsSpeakingTTS(false);
+    };
+    audioSourceRef.current = source;
+    setIsSpeakingTTS(true);
+    source.start(0);
+  };
 
   const startRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -89,36 +130,29 @@ export default function Home() {
       if (e.data.size > 0) audioChunksRef.current.push(e.data);
     };
     mediaRecorderRef.current = recorder;
-    isRecordingRef.current = true;
     recorder.start(1000);
 
     liveIntervalRef.current = setInterval(async () => {
-      if (isTranscribingRef.current) return;
-      if (audioChunksRef.current.length < 2) return;
-      if (!isRecordingRef.current) return;
-
+      if (isTranscribingRef.current || audioChunksRef.current.length === 0) return;
       isTranscribingRef.current = true;
       try {
         const blob = new Blob([...audioChunksRef.current], { type: "audio/webm" });
-        const text = await transcribeAudio(blob);
-        if (isRecordingRef.current && text) {
-          setLiveTranscript(text);
-        }
+        const text = await transcribeAudio(blob, selectedLangRef.current);
+        if (text) setLiveTranscript(text);
       } catch {
-        // Interim transcription errors are non-fatal
+        // non-critical — don't break recording
       } finally {
         isTranscribingRef.current = false;
       }
-    }, 3000);
+    }, 1000);
   };
 
   const stopRecording = () => {
-    isRecordingRef.current = false;
-
     if (liveIntervalRef.current) {
       clearInterval(liveIntervalRef.current);
       liveIntervalRef.current = null;
     }
+    isTranscribingRef.current = false;
     if (volumeIntervalRef.current) {
       clearInterval(volumeIntervalRef.current);
       volumeIntervalRef.current = null;
@@ -163,6 +197,8 @@ export default function Home() {
     setLiveTranscript("");
     setVolumeLevel(0);
 
+    getAudioContext();
+
     try {
       await startRecording();
     } catch (e: unknown) {
@@ -175,15 +211,14 @@ export default function Home() {
   const forceStopListening = async () => {
     if (appState !== "listening") return;
     setAppState("processing");
-    setTranscript(liveTranscript);
 
     try {
       const audioBlob = await getRecordedBlob();
       stopRecording();
 
-      const text = await transcribeAudio(audioBlob);
+      const text = await transcribeAudio(audioBlob, selectedLang);
       setTranscript(text);
-      handleProcessing(text);
+      await handleProcessing(text);
     } catch (e: unknown) {
       console.error("[STT] error:", e);
       setLocalError((e as Error)?.message ?? "Transcription failed");
@@ -191,67 +226,32 @@ export default function Home() {
     }
   };
 
-  const playTTS = async (textToSpeak: string): Promise<void> => {
-    return new Promise(async (resolve) => {
-      try {
-        setIsSpeakingTTS(true);
-        const res = await fetch("/api/openai/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: textToSpeak }),
-        });
-
-        if (!res.ok) throw new Error("TTS Failed");
-
-        const arrayBuffer = await res.arrayBuffer();
-
-        if (!audioContextRef.current) {
-          audioContextRef.current =
-            new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-        }
-        const audioCtx = audioContextRef.current;
-        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-
-        const source = audioCtx.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(audioCtx.destination);
-        source.onended = () => {
-          setIsSpeakingTTS(false);
-          resolve();
-        };
-
-        audioSourceRef.current = source;
-        source.start(0);
-      } catch (error) {
-        console.error("Failed to play TTS:", error);
-        setIsSpeakingTTS(false);
-        resolve();
-      }
-    });
+  const STEP_LABELS: Record<SupportedLang, { intro: string; step: string }> = {
+    en: { intro: "Here is what you need to do.", step: "Step" },
+    ja: { intro: "必要な手順は以下の通りです。", step: "ステップ" },
+    zh: { intro: "以下是您需要做的。", step: "第" },
+    ko: { intro: "다음은 필요한 단계입니다.", step: "단계" },
+    vi: { intro: "Dưới đây là những gì bạn cần làm.", step: "Bước" },
+    ne: { intro: "यहाँ तपाईंले गर्नुपर्ने कुराहरू छन्।", step: "चरण" },
   };
 
   const handleProcessing = async (text: string) => {
-    const match = matchQuery(text);
-
-    if (match.isUnsupported) {
-      setMatchedIntent(match);
-      setAppState("unsupported");
-      playTTS(match.welcomeMessage);
-      return;
-    }
-
-    setMatchedIntent(match);
-    setAppState("result");
+    const match = matchQuery(text, selectedLang);
+    const labels = STEP_LABELS[selectedLang];
 
     let fullSpeech = match.welcomeMessage;
-    if (match.steps.length > 0) {
-      fullSpeech += " Here is what you need to do. ";
+    if (!match.isUnsupported && match.steps.length > 0) {
+      fullSpeech += ` ${labels.intro} `;
       match.steps.forEach((step, idx) => {
-        fullSpeech += `Step ${idx + 1}: ${step.title}. ${step.description} `;
+        fullSpeech += `${labels.step} ${idx + 1}: ${step.title}. ${step.description} `;
       });
     }
 
-    playTTS(fullSpeech);
+    const audioBuffer = await preloadAudio(fullSpeech);
+
+    setMatchedIntent(match);
+    setAppState(match.isUnsupported ? "unsupported" : "result");
+    playAudio(audioBuffer);
   };
 
   const restartProcess = () => {
@@ -314,6 +314,30 @@ export default function Home() {
             </p>
           </div>
 
+          {/* Language selector */}
+          <div className="w-full max-w-sm mb-7">
+            <div className="flex items-center gap-2 mb-3">
+              <Globe className="w-4 h-4 text-slate-500" />
+              <p className="text-sm font-semibold text-slate-600">Select your language</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {LANGUAGES.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => setSelectedLang(lang.code)}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all duration-200 ${
+                    selectedLang === lang.code
+                      ? "bg-blue-50 border-blue-300 text-blue-700 shadow-sm ring-2 ring-blue-200"
+                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
+                  }`}
+                >
+                  <span className="text-lg leading-none">{lang.flag}</span>
+                  <span className="truncate">{lang.nativeLabel}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {localError && (
             <div className="mb-5 flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-5 py-4 max-w-sm w-full">
               <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
@@ -369,7 +393,7 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Volume indicator + live transcript */}
+          {/* Volume indicator + transcript */}
           <div className="mt-8 min-h-24 flex flex-col items-center justify-start text-center max-w-2xl px-8 w-full gap-3">
             {appState === "listening" && (
               <div className="flex items-end gap-1.5 h-8">
@@ -391,18 +415,20 @@ export default function Home() {
               </div>
             )}
 
-            {appState === "listening" && liveTranscript ? (
-              <p className="text-2xl text-slate-700 italic font-medium leading-relaxed animate-in fade-in">
-                &quot;{liveTranscript}&quot;
-              </p>
-            ) : appState === "listening" ? (
-              <p className="text-lg text-slate-400 animate-pulse">Speak now — your words will appear here...</p>
+            {appState === "listening" ? (
+              liveTranscript ? (
+                <p className="text-xl text-slate-700 italic font-medium leading-relaxed animate-in fade-in">
+                  &quot;{liveTranscript}&quot;
+                </p>
+              ) : (
+                <p className="text-lg text-slate-400 animate-pulse">Speak now...</p>
+              )
             ) : transcript ? (
               <p className="text-2xl text-slate-700 italic font-medium leading-relaxed animate-in fade-in">
                 &quot;{transcript}&quot;
               </p>
             ) : (
-              <p className="text-lg text-slate-400 animate-pulse">Transcribing with Whisper...</p>
+              <p className="text-lg text-slate-400 animate-pulse">Processing...</p>
             )}
           </div>
 
