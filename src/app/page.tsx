@@ -4,171 +4,198 @@ import { ActionInterface } from "@/components/ActionInterface";
 import { Mascot } from "@/components/Mascot";
 import { Button } from "@/components/ui/button";
 import { IntentMatch, matchQuery } from "@/lib/knowledgeBase";
-import { agora } from "@/lib/stt-message";
-import type { IAgoraRTCClient, ILocalAudioTrack } from "agora-rtc-sdk-ng";
-import { AlertCircle, BotMessageSquare, MapPin, Mic, RefreshCw, Square, XCircle } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { AlertCircle, BotMessageSquare, MapPin, Mic, RefreshCw, XCircle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type AppState = "idle" | "listening" | "processing" | "result" | "unsupported";
 
 export default function Home() {
   const [appState, setAppState] = useState<AppState>("idle");
   const [transcript, setTranscript] = useState("");
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [volumeLevel, setVolumeLevel] = useState(0);
   const [matchedIntent, setMatchedIntent] = useState<IntentMatch | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSpeakingTTS, setIsSpeakingTTS] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  const clientRef = useRef<IAgoraRTCClient | null>(null);
-  const micRef = useRef<ILocalAudioTrack | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   const volumeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const speakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sttTaskIdRef = useRef<string | null>(null);
-  const transcriptRef = useRef("");
-  const interimRef = useRef("");
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
-
-  const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID ?? "";
-  const channel = process.env.NEXT_PUBLIC_AGORA_CHANNEL ?? "test";
-  const token = process.env.NEXT_PUBLIC_AGORA_TOKEN ?? null;
+  const liveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isTranscribingRef = useRef(false);
+  const isRecordingRef = useRef(false);
 
   useEffect(() => {
     setIsMounted(true);
     return () => {
-      stopAgoraSTT();
-      stopAgora();
+      stopRecording();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleStreamMessage = (_uid: number, payload: Uint8Array) => {
-    try {
-      const msg = agora.audio.stt.Text.decode(payload);
-      if (!msg.words || msg.words.length === 0) return;
+  const transcribeAudio = useCallback(async (audioBlob: Blob): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", audioBlob, "recording.webm");
 
-      let isFinal = false;
-      let currentText = "";
-      msg.words.forEach((word) => {
-        if (word.isFinal) isFinal = true;
-        currentText += word.text;
-      });
-
-      if (isFinal) {
-        transcriptRef.current = (transcriptRef.current + " " + currentText).trim();
-        interimRef.current = "";
-      } else {
-        interimRef.current = currentText;
-      }
-
-      const full = (transcriptRef.current + " " + interimRef.current).trim();
-      setTranscript(full);
-    } catch (e) {
-      console.error("[STT] stream message decode error:", e);
-    }
-  };
-
-  const startAgoraSTT = async (userUid: string) => {
-    const res = await fetch("/api/agora/stt/start", {
+    const res = await fetch("/api/openai/stt", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channelName: channel, userUid }),
+      body: formData,
     });
+
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(
-        `STT start failed (${res.status}): ${errorData.details || errorData.error || res.statusText}`
-      );
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `STT failed (${res.status})`);
     }
+
     const data = await res.json();
-    sttTaskIdRef.current = data.taskId;
-  };
+    return data.text || "";
+  }, []);
 
-  const stopAgoraSTT = async () => {
-    if (!sttTaskIdRef.current) return;
-    try {
-      await fetch("/api/agora/stt/stop", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: sttTaskIdRef.current }),
-      });
-      sttTaskIdRef.current = null;
-    } catch (error) {
-      console.error("Error stopping Agora STT:", error);
-    }
-  };
+  const startRecording = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaStreamRef.current = stream;
 
-  const startAgora = async (): Promise<string> => {
-    const { default: AgoraRTC } = await import("agora-rtc-sdk-ng");
-    if (!clientRef.current) {
-      clientRef.current = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-      clientRef.current.on("stream-message", handleStreamMessage);
-    }
-    const assignedUid = await clientRef.current.join(appId, channel, token || null, null);
-    micRef.current = await AgoraRTC.createMicrophoneAudioTrack();
-    await clientRef.current.publish([micRef.current]);
+    const audioCtx = new AudioContext();
+    const source = audioCtx.createMediaStreamSource(stream);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+    analyserRef.current = analyser;
 
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
     volumeIntervalRef.current = setInterval(() => {
-      if (micRef.current) {
-        const volume = micRef.current.getVolumeLevel();
-        if (volume > 0.15) {
-          setIsSpeaking(true);
-          if (speakingTimeoutRef.current) clearTimeout(speakingTimeoutRef.current);
-          speakingTimeoutRef.current = setTimeout(() => setIsSpeaking(false), 500);
-        }
+      analyser.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+      const normalized = Math.min(100, Math.round((average / 128) * 100));
+      setVolumeLevel(normalized);
+
+      if (average > 20) {
+        setIsSpeaking(true);
+        if (speakingTimeoutRef.current) clearTimeout(speakingTimeoutRef.current);
+        speakingTimeoutRef.current = setTimeout(() => setIsSpeaking(false), 500);
       }
     }, 100);
 
-    return String(assignedUid);
+    audioChunksRef.current = [];
+    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunksRef.current.push(e.data);
+    };
+    mediaRecorderRef.current = recorder;
+    isRecordingRef.current = true;
+    recorder.start(1000);
+
+    liveIntervalRef.current = setInterval(async () => {
+      if (isTranscribingRef.current) return;
+      if (audioChunksRef.current.length < 2) return;
+      if (!isRecordingRef.current) return;
+
+      isTranscribingRef.current = true;
+      try {
+        const blob = new Blob([...audioChunksRef.current], { type: "audio/webm" });
+        const text = await transcribeAudio(blob);
+        if (isRecordingRef.current && text) {
+          setLiveTranscript(text);
+        }
+      } catch {
+        // Interim transcription errors are non-fatal
+      } finally {
+        isTranscribingRef.current = false;
+      }
+    }, 3000);
   };
 
-  const stopAgora = async () => {
-    if (volumeIntervalRef.current) { clearInterval(volumeIntervalRef.current); volumeIntervalRef.current = null; }
-    if (speakingTimeoutRef.current) { clearTimeout(speakingTimeoutRef.current); speakingTimeoutRef.current = null; }
-    setIsSpeaking(false);
-    if (clientRef.current) {
-      if (micRef.current) {
-        try { await clientRef.current.unpublish([micRef.current]); } catch { }
-        try { micRef.current.close(); } catch { }
-        micRef.current = null;
-      }
-      try { await clientRef.current.leave(); } catch { }
+  const stopRecording = () => {
+    isRecordingRef.current = false;
+
+    if (liveIntervalRef.current) {
+      clearInterval(liveIntervalRef.current);
+      liveIntervalRef.current = null;
     }
+    if (volumeIntervalRef.current) {
+      clearInterval(volumeIntervalRef.current);
+      volumeIntervalRef.current = null;
+    }
+    if (speakingTimeoutRef.current) {
+      clearTimeout(speakingTimeoutRef.current);
+      speakingTimeoutRef.current = null;
+    }
+    setIsSpeaking(false);
+    setVolumeLevel(0);
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    mediaRecorderRef.current = null;
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+    }
+    analyserRef.current = null;
+  };
+
+  const getRecordedBlob = (): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const recorder = mediaRecorderRef.current;
+      if (!recorder || recorder.state === "inactive") {
+        resolve(new Blob(audioChunksRef.current, { type: "audio/webm" }));
+        return;
+      }
+      recorder.onstop = () => {
+        resolve(new Blob(audioChunksRef.current, { type: "audio/webm" }));
+      };
+      recorder.stop();
+    });
   };
 
   const startListening = async () => {
     setAppState("listening");
     setLocalError(null);
     setTranscript("");
-    transcriptRef.current = "";
-    interimRef.current = "";
+    setLiveTranscript("");
+    setVolumeLevel(0);
 
     try {
-      const uid = await startAgora();
-      await startAgoraSTT(uid);
+      await startRecording();
     } catch (e: unknown) {
-      console.error("[STT] setup error:", e);
+      console.error("[Recording] setup error:", e);
       setLocalError((e as Error)?.message ?? "Failed to start recording");
       setAppState("idle");
-      await stopAgora();
     }
   };
 
-  const forceStopListening = () => {
+  const forceStopListening = async () => {
     if (appState !== "listening") return;
-    const finalTranscript = transcriptRef.current;
     setAppState("processing");
-    stopAgoraSTT().catch(console.error);
-    stopAgora().catch(console.error);
-    handleProcessing(finalTranscript);
+    setTranscript(liveTranscript);
+
+    try {
+      const audioBlob = await getRecordedBlob();
+      stopRecording();
+
+      const text = await transcribeAudio(audioBlob);
+      setTranscript(text);
+      handleProcessing(text);
+    } catch (e: unknown) {
+      console.error("[STT] error:", e);
+      setLocalError((e as Error)?.message ?? "Transcription failed");
+      setAppState("idle");
+    }
   };
 
   const playTTS = async (textToSpeak: string): Promise<void> => {
     return new Promise(async (resolve) => {
       try {
         setIsSpeakingTTS(true);
-        const res = await fetch("/api/minimax/tts", {
+        const res = await fetch("/api/openai/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: textToSpeak }),
@@ -231,14 +258,17 @@ export default function Home() {
     if (audioSourceRef.current) {
       try { audioSourceRef.current.stop(); } catch { }
     }
+    stopRecording();
     setIsSpeakingTTS(false);
     setAppState("idle");
     setTranscript("");
-    transcriptRef.current = "";
-    interimRef.current = "";
+    setLiveTranscript("");
+    setVolumeLevel(0);
     setMatchedIntent(null);
     setLocalError(null);
   };
+
+  const volumeBars = 5;
 
   if (!isMounted) {
     return (
@@ -339,28 +369,42 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Live transcript */}
-          <div className="mt-8 min-h-20 flex flex-col items-center justify-start text-center max-w-2xl px-8 w-full">
-            {transcript ? (
+          {/* Volume indicator + live transcript */}
+          <div className="mt-8 min-h-24 flex flex-col items-center justify-start text-center max-w-2xl px-8 w-full gap-3">
+            {appState === "listening" && (
+              <div className="flex items-end gap-1.5 h-8">
+                {Array.from({ length: volumeBars }).map((_, i) => {
+                  const barThreshold = ((i + 1) / volumeBars) * 100;
+                  const isActive = volumeLevel >= barThreshold;
+                  return (
+                    <div
+                      key={i}
+                      className={`w-2 rounded-full transition-all duration-100 ${
+                        isActive ? "bg-red-500" : "bg-slate-200"
+                      }`}
+                      style={{
+                        height: `${8 + (i + 1) * 4}px`,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {appState === "listening" && liveTranscript ? (
+              <p className="text-2xl text-slate-700 italic font-medium leading-relaxed animate-in fade-in">
+                &quot;{liveTranscript}&quot;
+              </p>
+            ) : appState === "listening" ? (
+              <p className="text-lg text-slate-400 animate-pulse">Speak now — your words will appear here...</p>
+            ) : transcript ? (
               <p className="text-2xl text-slate-700 italic font-medium leading-relaxed animate-in fade-in">
                 &quot;{transcript}&quot;
               </p>
-            ) : appState === "listening" ? (
-              <p className="text-lg text-slate-400 animate-pulse">Listening...</p>
-            ) : null}
+            ) : (
+              <p className="text-lg text-slate-400 animate-pulse">Transcribing with Whisper...</p>
+            )}
           </div>
-
-          {appState === "listening" && (
-            <Button
-              onClick={forceStopListening}
-              size="lg"
-              variant="destructive"
-              className="mt-10 px-8 py-6 rounded-full shadow-lg text-xl flex items-center gap-3 hover:scale-105 transition-transform"
-            >
-              <Square className="w-6 h-6 fill-current" />
-              Stop Recording
-            </Button>
-          )}
 
           <Button variant="ghost" onClick={restartProcess} className="mt-6 text-slate-500 hover:text-slate-800">
             Cancel
