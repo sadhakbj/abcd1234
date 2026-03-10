@@ -3,8 +3,8 @@
 import { ActionInterface } from "@/components/ActionInterface";
 import { Mascot } from "@/components/Mascot";
 import { Button } from "@/components/ui/button";
-import { IntentMatch, LANGUAGES, type SupportedLang, matchQuery } from "@/lib/knowledgeBase";
-import { AlertCircle, BotMessageSquare, Globe, MapPin, Mic, RefreshCw, XCircle } from "lucide-react";
+import { IntentMatch, LANGUAGES, UI_STRINGS, type SupportedLang, matchQuery } from "@/lib/knowledgeBase";
+import { AlertCircle, BotMessageSquare, ChevronDown, MapPin, Mic, RefreshCw, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type AppState = "idle" | "listening" | "processing" | "result" | "unsupported";
@@ -20,6 +20,10 @@ export default function Home() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSpeakingTTS, setIsSpeakingTTS] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+
+  const t = UI_STRINGS[selectedLang];
+  const currentLang = LANGUAGES.find((l) => l.code === selectedLang)!;
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -226,24 +230,14 @@ export default function Home() {
     }
   };
 
-  const STEP_LABELS: Record<SupportedLang, { intro: string; step: string }> = {
-    en: { intro: "Here is what you need to do.", step: "Step" },
-    ja: { intro: "必要な手順は以下の通りです。", step: "ステップ" },
-    zh: { intro: "以下是您需要做的。", step: "第" },
-    ko: { intro: "다음은 필요한 단계입니다.", step: "단계" },
-    vi: { intro: "Dưới đây là những gì bạn cần làm.", step: "Bước" },
-    ne: { intro: "यहाँ तपाईंले गर्नुपर्ने कुराहरू छन्।", step: "चरण" },
-  };
-
   const handleProcessing = async (text: string) => {
     const match = matchQuery(text, selectedLang);
-    const labels = STEP_LABELS[selectedLang];
 
     let fullSpeech = match.welcomeMessage;
     if (!match.isUnsupported && match.steps.length > 0) {
-      fullSpeech += ` ${labels.intro} `;
+      fullSpeech += ` ${t.stepIntro} `;
       match.steps.forEach((step, idx) => {
-        fullSpeech += `${labels.step} ${idx + 1}: ${step.title}. ${step.description} `;
+        fullSpeech += `${t.stepLabel} ${idx + 1}: ${step.title}. ${step.description} `;
       });
     }
 
@@ -281,65 +275,117 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-white text-slate-900 font-sans flex flex-col items-center">
 
+      {/* ── Top bar — always visible ──────────────────────── */}
+      <div className="w-full flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <MapPin className="w-4 h-4 text-blue-600" />
+          <span>北区役所</span>
+        </div>
+
+        {/* Language dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 transition-colors text-sm font-medium text-slate-700"
+          >
+            <span className="text-base leading-none">{currentLang.flag}</span>
+            <span>{currentLang.nativeLabel}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${langDropdownOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {langDropdownOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setLangDropdownOpen(false)} />
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                {LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => { setSelectedLang(lang.code); setLangDropdownOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                      selectedLang === lang.code
+                        ? "bg-blue-50 text-blue-700 font-semibold"
+                        : "text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="text-lg leading-none">{lang.flag}</span>
+                    <span>{lang.nativeLabel}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* ── IDLE ─────────────────────────────────────────── */}
       {appState === "idle" && (
         <div className="flex-1 flex flex-col items-center justify-center p-6 w-full animate-in fade-in duration-700">
 
-          {/* Office badge */}
-          <div className="flex items-center gap-2 bg-blue-600 text-white text-sm font-semibold px-5 py-2 rounded-full shadow-md mb-6 tracking-wide">
-            <MapPin className="w-4 h-4" />
-            北区役所 · Kita-ku Kuyakusho
-          </div>
+          {/* ── Orbit system: Mascot + revolving flags ── */}
+          <div className="relative flex items-center justify-center mb-10" style={{ width: 400, height: 400 }}>
 
-          {/* Speech bubble + mascot */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="relative bg-blue-50 border border-blue-100 px-10 py-5 rounded-3xl shadow-lg text-center mb-2">
-              <p className="text-3xl font-bold text-blue-700 tracking-tight leading-snug">いらっしゃいませ</p>
-              <p className="text-base font-medium text-blue-500 mt-1 tracking-widest">Welcome!</p>
-              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-blue-50 border-r border-b border-blue-100 rotate-45"></div>
+            {/* Orbit rings */}
+            <div className="orbit-ring orbit-ring-1" />
+            <div className="orbit-ring orbit-ring-2" />
+            <div className="orbit-ring orbit-ring-3" />
+
+            {/* Glow behind mascot */}
+            <div
+              className="absolute rounded-full bg-gradient-to-br from-blue-200 via-indigo-200 to-purple-200"
+              style={{ width: 160, height: 160, top: "50%", left: "50%", marginTop: -80, marginLeft: -80, animation: "glow-pulse 3s ease-in-out infinite", filter: "blur(20px)" }}
+            />
+
+            {/* Mascot center */}
+            <div className="absolute z-20" style={{ top: "50%", left: "50%", marginTop: -70, marginLeft: -70, animation: "mascot-float 3s ease-in-out infinite" }}>
+              <Mascot className="w-36 h-36 drop-shadow-lg" />
             </div>
-            <Mascot className="w-52 h-52 mt-4 animate-bounce drop-shadow-md" />
+
+            {/* Ring 1 — fast inner orbit (10s) */}
+            <div className="orbit-flag" style={{ animation: "orbit-1 10s linear infinite" }}>
+              <span className="orbit-flag-label">Welcome!</span>
+              <span className="orbit-flag-emoji">🇬🇧</span>
+            </div>
+            <div className="orbit-flag" style={{ animation: "orbit-1 10s linear infinite", animationDelay: "-5s" }}>
+              <span className="orbit-flag-label">いらっしゃいませ</span>
+              <span className="orbit-flag-emoji">🇯🇵</span>
+            </div>
+
+            {/* Ring 2 — medium orbit (16s) */}
+            <div className="orbit-flag" style={{ animation: "orbit-2 16s linear infinite" }}>
+              <span className="orbit-flag-label">欢迎光临</span>
+              <span className="orbit-flag-emoji">🇨🇳</span>
+            </div>
+            <div className="orbit-flag" style={{ animation: "orbit-2 16s linear infinite", animationDelay: "-8s" }}>
+              <span className="orbit-flag-label">환영합니다</span>
+              <span className="orbit-flag-emoji">🇰🇷</span>
+            </div>
+
+            {/* Ring 3 — slow outer orbit (22s) */}
+            <div className="orbit-flag" style={{ animation: "orbit-3 22s linear infinite" }}>
+              <span className="orbit-flag-label">Xin chào</span>
+              <span className="orbit-flag-emoji">🇻🇳</span>
+            </div>
+            <div className="orbit-flag" style={{ animation: "orbit-3 22s linear infinite", animationDelay: "-11s" }}>
+              <span className="orbit-flag-label">स्वागत छ</span>
+              <span className="orbit-flag-emoji">🇳🇵</span>
+            </div>
           </div>
 
           {/* Info card */}
-          <div className="w-full max-w-sm bg-slate-50 border border-slate-200 rounded-3xl p-5 mb-7 shadow-sm">
+          <div className="w-full max-w-md bg-gradient-to-br from-slate-50 to-blue-50/50 border border-slate-200 rounded-3xl p-5 mb-8 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
                 <BotMessageSquare className="w-5 h-5 text-blue-600" />
               </div>
-              <p className="text-sm font-bold text-slate-700">Voice Guide Assistant</p>
+              <p className="text-sm font-bold text-slate-700">{t.voiceGuide}</p>
             </div>
             <p className="text-sm text-slate-500 leading-relaxed">
-              Hi, I am your digital guide, and I can help you <span className="font-semibold text-slate-700">finish your ward office</span> operations smoothly and stress-free. <span className="font-semibold text-slate-700">Tell me how I can help you.</span>
+              {t.guideDescription}
             </p>
           </div>
 
-          {/* Language selector */}
-          <div className="w-full max-w-sm mb-7">
-            <div className="flex items-center gap-2 mb-3">
-              <Globe className="w-4 h-4 text-slate-500" />
-              <p className="text-sm font-semibold text-slate-600">Select your language</p>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {LANGUAGES.map((lang) => (
-                <button
-                  key={lang.code}
-                  onClick={() => setSelectedLang(lang.code)}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all duration-200 ${
-                    selectedLang === lang.code
-                      ? "bg-blue-50 border-blue-300 text-blue-700 shadow-sm ring-2 ring-blue-200"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
-                  }`}
-                >
-                  <span className="text-lg leading-none">{lang.flag}</span>
-                  <span className="truncate">{lang.nativeLabel}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {localError && (
-            <div className="mb-5 flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-5 py-4 max-w-sm w-full">
+            <div className="mb-5 flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-5 py-4 max-w-md w-full">
               <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
               <p className="text-sm text-red-700">{localError}</p>
             </div>
@@ -351,7 +397,7 @@ export default function Home() {
             className="text-xl px-14 py-7 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 hover:scale-105 transition-all duration-300 flex items-center gap-3"
           >
             <Mic className="w-6 h-6" />
-            Begin
+            {t.begin}
           </Button>
 
         </div>
@@ -362,7 +408,7 @@ export default function Home() {
         <div className="flex-1 flex flex-col items-center justify-center p-8 w-full animate-in fade-in duration-500">
           <div className="mb-8 relative bg-red-50 border border-red-100 px-8 py-4 rounded-3xl shadow-lg max-w-2xl text-center">
             <h2 className="text-3xl font-bold text-red-800 tracking-tight">
-              {appState === "listening" ? "I am listening... Please speak clearly." : "Processing your request..."}
+              {appState === "listening" ? t.listening : t.processingRequest}
             </h2>
             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-red-50 border-r border-b border-red-100 rotate-45"></div>
           </div>
@@ -421,19 +467,19 @@ export default function Home() {
                   &quot;{liveTranscript}&quot;
                 </p>
               ) : (
-                <p className="text-lg text-slate-400 animate-pulse">Speak now...</p>
+                <p className="text-lg text-slate-400 animate-pulse">{t.speakNow}</p>
               )
             ) : transcript ? (
               <p className="text-2xl text-slate-700 italic font-medium leading-relaxed animate-in fade-in">
                 &quot;{transcript}&quot;
               </p>
             ) : (
-              <p className="text-lg text-slate-400 animate-pulse">Processing...</p>
+              <p className="text-lg text-slate-400 animate-pulse">{t.processing}</p>
             )}
           </div>
 
           <Button variant="ghost" onClick={restartProcess} className="mt-6 text-slate-500 hover:text-slate-800">
-            Cancel
+            {t.cancel}
           </Button>
         </div>
       )}
@@ -457,7 +503,7 @@ export default function Home() {
                 <span className="w-2 h-2 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "0ms" }} />
                 <span className="w-2 h-2 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "150ms" }} />
                 <span className="w-2 h-2 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "300ms" }} />
-                <span className="ml-1">Speaking</span>
+                <span className="ml-1">{t.speaking}</span>
               </div>
             )}
 
@@ -468,7 +514,7 @@ export default function Home() {
               </p>
               {transcript && (
                 <p className="text-sm text-orange-600 mt-3 italic">
-                  You asked: &quot;{transcript}&quot;
+                  {t.youAsked} &quot;{transcript}&quot;
                 </p>
               )}
             </div>
@@ -480,7 +526,7 @@ export default function Home() {
               className="px-10 py-6 rounded-full bg-blue-600 hover:bg-blue-700 hover:scale-105 text-white text-lg font-semibold shadow-lg transition-all duration-300 flex items-center gap-3"
             >
               <RefreshCw className="w-5 h-5" />
-              Start New Request
+              {t.startNew}
             </Button>
 
           </div>
@@ -497,7 +543,7 @@ export default function Home() {
               {/* Speech bubble with transcript */}
               {transcript && (
                 <div className="relative bg-white border border-slate-100 rounded-2xl px-4 py-3 shadow-sm w-full text-center">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">You said</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{t.youSaid}</p>
                   <p className="text-sm font-medium text-slate-700 italic leading-snug">
                     &quot;{transcript}&quot;
                   </p>
@@ -512,7 +558,7 @@ export default function Home() {
                   <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "0ms" }} />
                   <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "150ms" }} />
                   <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "300ms" }} />
-                  <span className="ml-1">Speaking</span>
+                  <span className="ml-1">{t.speaking}</span>
                 </div>
               )}
             </div>
@@ -522,7 +568,7 @@ export default function Home() {
               onClick={restartProcess}
               className="mt-auto w-full rounded-2xl bg-white hover:bg-slate-50 border-slate-200 font-medium"
             >
-              Ask Another Question
+              {t.askAnother}
             </Button>
           </div>
 

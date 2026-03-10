@@ -16,6 +16,129 @@ export const LANGUAGES: LangOption[] = [
   { code: "ne", label: "Nepali", nativeLabel: "नेपाली", flag: "🇳🇵" },
 ];
 
+export type UIStrings = {
+  voiceGuide: string;
+  guideDescription: string;
+  begin: string;
+  listening: string;
+  processingRequest: string;
+  speakNow: string;
+  processing: string;
+  speaking: string;
+  cancel: string;
+  youAsked: string;
+  startNew: string;
+  askAnother: string;
+  youSaid: string;
+  stepLabel: string;
+  stepIntro: string;
+};
+
+export const UI_STRINGS: Record<SupportedLang, UIStrings> = {
+  en: {
+    voiceGuide: "Voice Guide Assistant",
+    guideDescription: "I can help you complete your ward office procedures smoothly. Just tap the button and tell me what you need.",
+    begin: "Begin",
+    listening: "I am listening... Please speak clearly.",
+    processingRequest: "Processing your request...",
+    speakNow: "Speak now...",
+    processing: "Processing...",
+    speaking: "Speaking",
+    cancel: "Cancel",
+    youAsked: "You asked:",
+    startNew: "Start New Request",
+    askAnother: "Ask Another Question",
+    youSaid: "You said",
+    stepLabel: "Step",
+    stepIntro: "Here is what you need to do.",
+  },
+  ja: {
+    voiceGuide: "音声ガイドアシスタント",
+    guideDescription: "区役所の手続きをスムーズに行うお手伝いをします。ボタンを押して、ご用件をお聞かせください。",
+    begin: "開始",
+    listening: "お聞きしています...はっきりお話しください。",
+    processingRequest: "リクエストを処理中...",
+    speakNow: "お話しください...",
+    processing: "処理中...",
+    speaking: "読み上げ中",
+    cancel: "キャンセル",
+    youAsked: "お問い合わせ内容：",
+    startNew: "新しいリクエスト",
+    askAnother: "別の質問をする",
+    youSaid: "お問い合わせ",
+    stepLabel: "ステップ",
+    stepIntro: "必要な手順は以下の通りです。",
+  },
+  zh: {
+    voiceGuide: "语音引导助手",
+    guideDescription: "我可以帮助您顺利完成区役所的手续。按下按钮，告诉我您需要什么。",
+    begin: "开始",
+    listening: "正在倾听...请清楚地说。",
+    processingRequest: "正在处理您的请求...",
+    speakNow: "请说话...",
+    processing: "处理中...",
+    speaking: "朗读中",
+    cancel: "取消",
+    youAsked: "您问的是：",
+    startNew: "新的请求",
+    askAnother: "问其他问题",
+    youSaid: "您说的是",
+    stepLabel: "第",
+    stepIntro: "以下是您需要做的。",
+  },
+  ko: {
+    voiceGuide: "음성 안내 도우미",
+    guideDescription: "구청 업무를 원활하게 처리할 수 있도록 도와드리겠습니다. 버튼을 누르고 필요한 것을 말씀해 주세요.",
+    begin: "시작",
+    listening: "듣고 있습니다... 또렷하게 말씀해 주세요.",
+    processingRequest: "요청을 처리 중...",
+    speakNow: "말씀하세요...",
+    processing: "처리 중...",
+    speaking: "읽는 중",
+    cancel: "취소",
+    youAsked: "질문하신 내용:",
+    startNew: "새로운 요청",
+    askAnother: "다른 질문하기",
+    youSaid: "말씀하신 내용",
+    stepLabel: "단계",
+    stepIntro: "다음은 필요한 단계입니다.",
+  },
+  vi: {
+    voiceGuide: "Trợ lý hướng dẫn giọng nói",
+    guideDescription: "Tôi có thể giúp bạn hoàn thành thủ tục tại văn phòng quận. Nhấn nút và cho tôi biết bạn cần gì.",
+    begin: "Bắt đầu",
+    listening: "Tôi đang lắng nghe... Hãy nói rõ ràng.",
+    processingRequest: "Đang xử lý yêu cầu...",
+    speakNow: "Hãy nói...",
+    processing: "Đang xử lý...",
+    speaking: "Đang đọc",
+    cancel: "Hủy",
+    youAsked: "Bạn đã hỏi:",
+    startNew: "Yêu cầu mới",
+    askAnother: "Hỏi câu khác",
+    youSaid: "Bạn đã nói",
+    stepLabel: "Bước",
+    stepIntro: "Dưới đây là những gì bạn cần làm.",
+  },
+  ne: {
+    voiceGuide: "भ्वाइस गाइड सहायक",
+    guideDescription: "म तपाईंलाई वार्ड कार्यालयको काम सहज रूपमा पूरा गर्न मद्दत गर्न सक्छु। बटन थिच्नुहोस् र तपाईंलाई के चाहिन्छ भन्नुहोस्।",
+    begin: "सुरु गर्नुहोस्",
+    listening: "म सुनिरहेको छु... कृपया स्पष्ट बोल्नुहोस्।",
+    processingRequest: "तपाईंको अनुरोध प्रशोधन गर्दै...",
+    speakNow: "बोल्नुहोस्...",
+    processing: "प्रशोधन गर्दै...",
+    speaking: "बोल्दै",
+    cancel: "रद्द गर्नुहोस्",
+    youAsked: "तपाईंले सोध्नुभयो:",
+    startNew: "नयाँ अनुरोध",
+    askAnother: "अर्को प्रश्न सोध्नुहोस्",
+    youSaid: "तपाईंले भन्नुभयो",
+    stepLabel: "चरण",
+    stepIntro: "यहाँ तपाईंले गर्नुपर्ने कुराहरू छन्।",
+  },
+};
+
 export type Step = {
   id: string;
   title: string;
