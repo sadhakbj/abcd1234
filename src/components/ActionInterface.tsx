@@ -12,6 +12,7 @@ import {
 interface ActionInterfaceProps {
   match: IntentMatch;
   onRestart: () => void;
+  startOverLabel?: string;
 }
 
 const colorMap: Record<
@@ -78,7 +79,7 @@ function renderIcon(type: string, className: string) {
   }
 }
 
-export function ActionInterface({ match, onRestart }: ActionInterfaceProps) {
+export function ActionInterface({ match, onRestart, startOverLabel = "Start Over" }: ActionInterfaceProps) {
   return (
     <div className="w-full space-y-4">
 
@@ -95,7 +96,7 @@ export function ActionInterface({ match, onRestart }: ActionInterfaceProps) {
           variant="outline"
           className="shrink-0 rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 px-5 hidden lg:flex"
         >
-          Start Over
+          {startOverLabel}
         </Button>
       </div>
 
