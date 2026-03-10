@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { type IntentMatch, type SupportedLang, UI_STRINGS, matchQuery } from "@/lib/knowledgeBase";
-import { transcribeAudio } from "@/services/openai";
+import { type IntentMatch, type SupportedLang, UI_STRINGS, getIntent } from "@/lib/knowledgeBase";
+import { classifyIntent, transcribeAudio } from "@/services/openai";
 import { useAudioRecorder } from "./useAudioRecorder";
 import { useSpeechRecognition } from "./useSpeechRecognition";
 import { useTextToSpeech } from "./useTextToSpeech";
@@ -46,7 +46,8 @@ export function useVoiceAssistant(lang: SupportedLang): VoiceAssistant {
   }, [t]);
 
   const handleProcessing = useCallback(async (text: string) => {
-    const match = matchQuery(text, lang);
+    const intentKey = await classifyIntent(text);
+    const match = getIntent(intentKey, lang);
     const audioBuffer = await tts.preloadAudio(buildSpeechText(match));
     setMatchedIntent(match);
     setAppState(match.isUnsupported ? "unsupported" : "result");

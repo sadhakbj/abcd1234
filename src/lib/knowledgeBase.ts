@@ -1,4 +1,4 @@
-export type SupportedLang = "en" | "ja" | "zh" | "ko" | "vi" | "ne";
+export type SupportedLang = "en" | "ja" | "ne";
 
 export type LangOption = {
   code: SupportedLang;
@@ -10,9 +10,6 @@ export type LangOption = {
 export const LANGUAGES: LangOption[] = [
   { code: "en", label: "English", nativeLabel: "English", flag: "🇬🇧" },
   { code: "ja", label: "Japanese", nativeLabel: "日本語", flag: "🇯🇵" },
-  { code: "zh", label: "Chinese", nativeLabel: "中文", flag: "🇨🇳" },
-  { code: "ko", label: "Korean", nativeLabel: "한국어", flag: "🇰🇷" },
-  { code: "vi", label: "Vietnamese", nativeLabel: "Tiếng Việt", flag: "🇻🇳" },
   { code: "ne", label: "Nepali", nativeLabel: "नेपाली", flag: "🇳🇵" },
 ];
 
@@ -68,57 +65,6 @@ export const UI_STRINGS: Record<SupportedLang, UIStrings> = {
     youSaid: "お問い合わせ",
     stepLabel: "ステップ",
     stepIntro: "必要な手順は以下の通りです。",
-  },
-  zh: {
-    voiceGuide: "语音引导助手",
-    guideDescription: "我可以帮助您顺利完成区役所的手续。按下按钮，告诉我您需要什么。",
-    begin: "开始",
-    listening: "正在倾听...请清楚地说。",
-    processingRequest: "正在处理您的请求...",
-    speakNow: "请说话...",
-    processing: "处理中...",
-    speaking: "朗读中",
-    cancel: "取消",
-    youAsked: "您问的是：",
-    startNew: "新的请求",
-    askAnother: "问其他问题",
-    youSaid: "您说的是",
-    stepLabel: "第",
-    stepIntro: "以下是您需要做的。",
-  },
-  ko: {
-    voiceGuide: "음성 안내 도우미",
-    guideDescription: "구청 업무를 원활하게 처리할 수 있도록 도와드리겠습니다. 버튼을 누르고 필요한 것을 말씀해 주세요.",
-    begin: "시작",
-    listening: "듣고 있습니다... 또렷하게 말씀해 주세요.",
-    processingRequest: "요청을 처리 중...",
-    speakNow: "말씀하세요...",
-    processing: "처리 중...",
-    speaking: "읽는 중",
-    cancel: "취소",
-    youAsked: "질문하신 내용:",
-    startNew: "새로운 요청",
-    askAnother: "다른 질문하기",
-    youSaid: "말씀하신 내용",
-    stepLabel: "단계",
-    stepIntro: "다음은 필요한 단계입니다.",
-  },
-  vi: {
-    voiceGuide: "Trợ lý hướng dẫn giọng nói",
-    guideDescription: "Tôi có thể giúp bạn hoàn thành thủ tục tại văn phòng quận. Nhấn nút và cho tôi biết bạn cần gì.",
-    begin: "Bắt đầu",
-    listening: "Tôi đang lắng nghe... Hãy nói rõ ràng.",
-    processingRequest: "Đang xử lý yêu cầu...",
-    speakNow: "Hãy nói...",
-    processing: "Đang xử lý...",
-    speaking: "Đang đọc",
-    cancel: "Hủy",
-    youAsked: "Bạn đã hỏi:",
-    startNew: "Yêu cầu mới",
-    askAnother: "Hỏi câu khác",
-    youSaid: "Bạn đã nói",
-    stepLabel: "Bước",
-    stepIntro: "Dưới đây là những gì bạn cần làm.",
   },
   ne: {
     voiceGuide: "भ्वाइस गाइड सहायक",
@@ -256,10 +202,90 @@ const KNOWLEDGE_BASE: Record<SupportedLang, KnowledgeBase> = {
         noText: "Not sure, I need help",
       },
     },
+    child_subsidy: {
+      intent: "Child Subsidy Application (児童手当)",
+      welcomeMessage:
+        "I can help you apply for Child Subsidy (児童手当). This is a monthly allowance for families raising children under 15. Please follow the steps below.",
+      steps: [
+        {
+          id: "step-1",
+          title: "Prepare Required Documents",
+          description:
+            "You will need: your health insurance card, a bank passbook or card (for the account where you want the subsidy deposited), your My Number Card or notification card, and your child's health insurance card if different from yours.",
+          iconType: "document",
+          color: "amber",
+        },
+        {
+          id: "step-2",
+          title: "Fill Out the Application Form",
+          description:
+            "Pick up the Child Subsidy Application form (児童手当認定請求書) at the 2nd floor Children & Families Counter. Fill in your details, your child's information, and your bank account.",
+          iconType: "document",
+          color: "blue",
+          actionText: "Get Form at 2F Counter",
+        },
+        {
+          id: "step-3",
+          title: "Submit at the 2nd Floor — Children & Families Section",
+          description:
+            "Bring your completed form and all required documents to the Children & Families Section (子ども・家庭課) on the 2nd floor. Processing usually takes about 15 minutes.",
+          iconType: "location",
+          color: "emerald",
+        },
+      ],
+      interactivePrompt: {
+        question: "Have you recently moved to Kita-ku?",
+        subtitle:
+          "If you just moved here, you need to apply within 15 days of your move-in date to avoid missing a month's payment. We can also help with your address change at the same time.",
+        iconType: "help",
+        yesText: "Yes, I just moved",
+        noText: "No, I already live here",
+      },
+    },
+    resident_certificate: {
+      intent: "Resident Certificate (住民票)",
+      welcomeMessage:
+        "I can help you get a copy of your Resident Certificate (住民票の写し). This is one of the most common requests. Please follow the steps below.",
+      steps: [
+        {
+          id: "step-1",
+          title: "Bring Your ID",
+          description:
+            "You will need a valid photo ID such as your My Number Card, driver's license, passport, or residence card (在留カード). If you are requesting on behalf of someone else, you will also need a power of attorney (委任状).",
+          iconType: "document",
+          color: "amber",
+        },
+        {
+          id: "step-2",
+          title: "Fill Out the Request Form",
+          description:
+            "Pick up the Resident Certificate Request form (住民票の写し等交付申請書) at the 1st floor Information Desk. Select which information you need included (household members, My Number, etc.).",
+          iconType: "document",
+          color: "blue",
+          actionText: "Get Form at Info Desk",
+        },
+        {
+          id: "step-3",
+          title: "Submit at Window 2 — Certificate Counter",
+          description:
+            "Submit your completed form and ID at Window 2 on the 1st floor (Certificate Issuance Counter). The fee is ¥300 per copy. Payment is by cash only.",
+          iconType: "location",
+          color: "emerald",
+        },
+      ],
+      interactivePrompt: {
+        question: "Do you have a My Number Card?",
+        subtitle:
+          "If you have a My Number Card, you can also get Resident Certificates at any convenience store (7-Eleven, Lawson, FamilyMart) using the multifunction copier — available 6:30 AM to 11:00 PM, including weekends. The fee is only ¥200.",
+        iconType: "card",
+        yesText: "Yes, I have it",
+        noText: "No, I don't",
+      },
+    },
     unsupported: {
       intent: "Unsupported Request",
       welcomeMessage:
-        "I'm sorry, I couldn't understand your request. I can help you with address change registration or My Number Card PIN reset. Please try again.",
+        "I'm sorry, I couldn't understand your request. I can help you with address changes, My Number Card PIN reset, child subsidy applications, or resident certificates. Please try again.",
       steps: [],
       isUnsupported: true,
     },
@@ -354,304 +380,90 @@ const KNOWLEDGE_BASE: Record<SupportedLang, KnowledgeBase> = {
         noText: "わかりません、助けてください",
       },
     },
+    child_subsidy: {
+      intent: "児童手当の申請",
+      welcomeMessage:
+        "児童手当の申請をお手伝いします。15歳以下のお子さまを養育するご家庭が対象の月額手当です。以下の手順に従ってください。",
+      steps: [
+        {
+          id: "step-1",
+          title: "必要書類を準備する",
+          description:
+            "健康保険証、振込先の通帳またはキャッシュカード、マイナンバーカードまたは通知カード、お子さまの健康保険証（別の場合）をご用意ください。",
+          iconType: "document",
+          color: "amber",
+        },
+        {
+          id: "step-2",
+          title: "申請書を記入する",
+          description:
+            "2階の子ども・家庭課窓口で児童手当認定請求書を受け取り、ご自身の情報、お子さまの情報、振込先口座を記入してください。",
+          iconType: "document",
+          color: "blue",
+          actionText: "2階窓口で用紙を受け取る",
+        },
+        {
+          id: "step-3",
+          title: "2階 子ども・家庭課で提出",
+          description:
+            "記入済みの申請書と必要書類を2階の子ども・家庭課にお持ちください。手続きは約15分で完了します。",
+          iconType: "location",
+          color: "emerald",
+        },
+      ],
+      interactivePrompt: {
+        question: "最近北区に転入されましたか？",
+        subtitle:
+          "転入された場合、転入日から15日以内に申請しないと1ヶ月分の支給を逃す可能性があります。住所変更も同時にお手伝いできます。",
+        iconType: "help",
+        yesText: "はい、最近転入しました",
+        noText: "いいえ、以前から住んでいます",
+      },
+    },
+    resident_certificate: {
+      intent: "住民票の写しの取得",
+      welcomeMessage:
+        "住民票の写しの取得をお手伝いします。最もよくあるお問い合わせの一つです。以下の手順に従ってください。",
+      steps: [
+        {
+          id: "step-1",
+          title: "本人確認書類をお持ちください",
+          description:
+            "マイナンバーカード、運転免許証、パスポート、在留カードなどの写真付き身分証明書が必要です。代理人の場合は委任状も必要です。",
+          iconType: "document",
+          color: "amber",
+        },
+        {
+          id: "step-2",
+          title: "申請書を記入する",
+          description:
+            "1階の総合案内で住民票の写し等交付申請書を受け取ってください。必要な記載事項（世帯員、マイナンバーなど）を選択してください。",
+          iconType: "document",
+          color: "blue",
+          actionText: "総合案内で用紙を受け取る",
+        },
+        {
+          id: "step-3",
+          title: "2番窓口で提出 — 証明書発行カウンター",
+          description:
+            "記入済みの申請書と本人確認書類を1階の2番窓口（証明書発行カウンター）に提出してください。手数料は1通300円で、現金のみです。",
+          iconType: "location",
+          color: "emerald",
+        },
+      ],
+      interactivePrompt: {
+        question: "マイナンバーカードをお持ちですか？",
+        subtitle:
+          "マイナンバーカードがあれば、コンビニ（セブンイレブン、ローソン、ファミリーマート）のマルチコピー機でも住民票を取得できます。朝6:30〜夜23:00まで土日も利用可能で、手数料は200円です。",
+        iconType: "card",
+        yesText: "はい、持っています",
+        noText: "いいえ、持っていません",
+      },
+    },
     unsupported: {
       intent: "対応外のリクエスト",
       welcomeMessage:
-        "申し訳ございません。住所変更またはマイナンバーカードの暗証番号リセットについてお手伝いできます。もう一度お試しください。",
-      steps: [],
-      isUnsupported: true,
-    },
-  },
-
-  zh: {
-    change_address: {
-      intent: "地址变更 — 搬入北区",
-      welcomeMessage:
-        "欢迎来到北区！我可以帮您办理地址变更登记。请按照以下步骤操作。",
-      steps: [
-        {
-          id: "step-1",
-          title: "准备迁出证明",
-          description:
-            "您需要由之前的区役所或市役所出具的迁出证明（転出証明書）。如果还没有取得，请先前往之前的区役所办理。",
-          iconType: "document",
-          color: "amber",
-        },
-        {
-          id: "step-2",
-          title: "填写迁入通知表",
-          description:
-            "在服务台领取迁入通知表（転入届）并填写。此表用于在北区登记您的新地址。必须在搬入后14天内提交。",
-          iconType: "document",
-          color: "blue",
-          actionText: "在服务台领取表格",
-        },
-        {
-          id: "step-3",
-          title: "在3号窗口提交 — 居民登记",
-          description:
-            "将填写好的迁入通知表和迁出证明提交至1楼的3号窗口（居民登记柜台）。",
-          iconType: "location",
-          color: "emerald",
-        },
-      ],
-      interactivePrompt: {
-        question: "您今天带了My Number卡吗？",
-        subtitle:
-          "如果带了My Number卡，可以在同一窗口更新地址，免去再次来访。",
-        iconType: "card",
-        yesText: "是的，我带了",
-        noText: "没有带",
-      },
-    },
-    mynumber_pin_reset: {
-      intent: "My Number卡 — 密码重置",
-      welcomeMessage:
-        "我可以帮您重置My Number卡的密码。请按照以下步骤操作。",
-      steps: [
-        {
-          id: "step-1",
-          title: "携带您的My Number卡",
-          description:
-            "请务必携带您的My Number卡（マイナンバーカード）。没有卡片无法重置密码。",
-          iconType: "document",
-          color: "amber",
-        },
-        {
-          id: "step-2",
-          title: "前往6楼 — My Number卡窗口",
-          description:
-            "乘电梯到6楼，前往My Number卡窗口。请寻找标有「マイナンバーカード窓口」的指示牌。",
-          iconType: "location",
-          color: "blue",
-        },
-        {
-          id: "step-3",
-          title: "填写密码重置申请表",
-          description:
-            "在窗口领取密码重置申请表，填写后连同My Number卡一起提交。工作人员会进行身份验证。",
-          iconType: "document",
-          color: "emerald",
-          actionText: "在6楼窗口领取表格",
-        },
-        {
-          id: "step-4",
-          title: "设置新密码",
-          description:
-            "验证通过后，您可以当场使用键盘设置新密码。设置完成后卡片会立即归还。",
-          iconType: "document",
-          color: "rose",
-        },
-      ],
-      interactivePrompt: {
-        question: "您知道需要重置哪个密码吗？",
-        subtitle:
-          "My Number卡有两个密码：4位数密码（用于便利店等服务）和6-16位签名密码（用于e-Tax等在线申请）。工作人员可以帮您重置任一或两个密码。",
-        iconType: "help",
-        yesText: "知道",
-        noText: "不确定，需要帮助",
-      },
-    },
-    unsupported: {
-      intent: "不支持的请求",
-      welcomeMessage:
-        "抱歉，我无法理解您的请求。我可以帮您办理地址变更或My Number卡密码重置。请再试一次。",
-      steps: [],
-      isUnsupported: true,
-    },
-  },
-
-  ko: {
-    change_address: {
-      intent: "주소 변경 — 기타구로 전입",
-      welcomeMessage:
-        "기타구에 오신 것을 환영합니다! 주소 변경 등록을 도와드리겠습니다. 아래 단계를 따라주세요.",
-      steps: [
-        {
-          id: "step-1",
-          title: "전출 증명서 준비",
-          description:
-            "이전에 거주하시던 구청 또는 시청에서 발급한 전출 증명서(転出証明書)가 필요합니다. 아직 받지 못하셨다면 이전 구청에서 먼저 수속해 주세요.",
-          iconType: "document",
-          color: "amber",
-        },
-        {
-          id: "step-2",
-          title: "전입신고서 작성",
-          description:
-            "안내 데스크에서 전입신고서(転入届) 용지를 받아 작성해 주세요. 이 신고서로 기타구에 새 주소를 등록합니다. 전입 후 14일 이내에 제출해야 합니다.",
-          iconType: "document",
-          color: "blue",
-          actionText: "안내 데스크에서 용지 받기",
-        },
-        {
-          id: "step-3",
-          title: "3번 창구에서 제출 — 주민 등록",
-          description:
-            "작성한 전입신고서와 전출 증명서를 1층 3번 창구(주민등록 카운터)에 제출해 주세요.",
-          iconType: "location",
-          color: "emerald",
-        },
-      ],
-      interactivePrompt: {
-        question: "마이넘버 카드를 가지고 오셨나요?",
-        subtitle:
-          "마이넘버 카드를 가지고 오시면 같은 창구에서 주소 변경도 가능하여 재방문할 필요가 없습니다.",
-        iconType: "card",
-        yesText: "네, 가지고 왔습니다",
-        noText: "아니요, 오늘은 없습니다",
-      },
-    },
-    mynumber_pin_reset: {
-      intent: "마이넘버 카드 — 비밀번호 재설정",
-      welcomeMessage:
-        "마이넘버 카드 비밀번호 재설정을 도와드리겠습니다. 아래 단계를 따라주세요.",
-      steps: [
-        {
-          id: "step-1",
-          title: "마이넘버 카드를 지참해 주세요",
-          description:
-            "마이넘버 카드(マイナンバーカード)를 반드시 가지고 오세요. 카드 없이는 비밀번호를 재설정할 수 없습니다.",
-          iconType: "document",
-          color: "amber",
-        },
-        {
-          id: "step-2",
-          title: "6층으로 이동 — 마이넘버 카드 창구",
-          description:
-            "엘리베이터를 타고 6층으로 올라가 마이넘버 카드 창구로 가세요. 「マイナンバーカード窓口」 표시를 찾으세요.",
-          iconType: "location",
-          color: "blue",
-        },
-        {
-          id: "step-3",
-          title: "비밀번호 재설정 신청서 작성",
-          description:
-            "창구에서 비밀번호 재설정 신청서를 받아 작성한 후 마이넘버 카드와 함께 제출하세요. 본인 확인이 진행됩니다.",
-          iconType: "document",
-          color: "emerald",
-          actionText: "6층 창구에서 용지 받기",
-        },
-        {
-          id: "step-4",
-          title: "새 비밀번호 설정",
-          description:
-            "본인 확인 후 키패드를 사용하여 현장에서 새 비밀번호를 설정합니다. 설정 후 즉시 카드가 반환됩니다.",
-          iconType: "document",
-          color: "rose",
-        },
-      ],
-      interactivePrompt: {
-        question: "어떤 비밀번호를 재설정해야 하는지 아시나요?",
-        subtitle:
-          "마이넘버 카드에는 두 가지 비밀번호가 있습니다: 4자리 비밀번호(편의점 서비스용)와 6-16자리 서명용 비밀번호(e-Tax 등 온라인 신청용). 직원이 둘 다 재설정을 도와드릴 수 있습니다.",
-        iconType: "help",
-        yesText: "네, 알고 있습니다",
-        noText: "모르겠습니다, 도움이 필요합니다",
-      },
-    },
-    unsupported: {
-      intent: "지원되지 않는 요청",
-      welcomeMessage:
-        "죄송합니다. 요청을 이해하지 못했습니다. 주소 변경 또는 마이넘버 카드 비밀번호 재설정을 도와드릴 수 있습니다. 다시 시도해 주세요.",
-      steps: [],
-      isUnsupported: true,
-    },
-  },
-
-  vi: {
-    change_address: {
-      intent: "Thay đổi địa chỉ — Chuyển đến Kita-ku",
-      welcomeMessage:
-        "Chào mừng đến Kita-ku! Tôi có thể giúp bạn hoàn thành đăng ký thay đổi địa chỉ. Vui lòng làm theo các bước dưới đây.",
-      steps: [
-        {
-          id: "step-1",
-          title: "Chuẩn bị Giấy chứng nhận chuyển đi",
-          description:
-            "Bạn cần Giấy chứng nhận chuyển đi (転出証明書) do văn phòng quận hoặc thành phố trước đó cấp. Nếu chưa có, bạn phải đến văn phòng quận cũ trước.",
-          iconType: "document",
-          color: "amber",
-        },
-        {
-          id: "step-2",
-          title: "Điền Đơn thông báo chuyển đến",
-          description:
-            "Điền vào Đơn thông báo chuyển đến (転入届) có tại Bàn Thông tin. Đơn này đăng ký địa chỉ mới của bạn tại Kita-ku. Bạn phải nộp trong vòng 14 ngày kể từ khi chuyển đến.",
-          iconType: "document",
-          color: "blue",
-          actionText: "Lấy đơn tại Bàn Thông tin",
-        },
-        {
-          id: "step-3",
-          title: "Nộp tại Quầy số 3 — Đăng ký cư trú",
-          description:
-            "Mang Đơn thông báo chuyển đến đã điền và Giấy chứng nhận chuyển đi đến Quầy số 3 tầng 1 (Quầy đăng ký cư trú).",
-          iconType: "location",
-          color: "emerald",
-        },
-      ],
-      interactivePrompt: {
-        question: "Hôm nay bạn có mang theo thẻ My Number không?",
-        subtitle:
-          "Mang theo thẻ My Number giúp chúng tôi cập nhật địa chỉ trên thẻ ngay tại quầy, giúp bạn không cần quay lại.",
-        iconType: "card",
-        yesText: "Có, tôi có mang",
-        noText: "Không, hôm nay không có",
-      },
-    },
-    mynumber_pin_reset: {
-      intent: "Thẻ My Number — Đặt lại mã PIN",
-      welcomeMessage:
-        "Tôi có thể giúp bạn đặt lại mã PIN thẻ My Number. Vui lòng làm theo các bước dưới đây.",
-      steps: [
-        {
-          id: "step-1",
-          title: "Mang theo thẻ My Number của bạn",
-          description:
-            "Hãy chắc chắn bạn có thẻ My Number (マイナンバーカード). Bạn không thể đặt lại mã PIN nếu không có thẻ.",
-          iconType: "document",
-          color: "amber",
-        },
-        {
-          id: "step-2",
-          title: "Đến tầng 6 — Quầy thẻ My Number",
-          description:
-            "Đi thang máy lên tầng 6 và đến Quầy thẻ My Number. Tìm biển hiệu ghi「マイナンバーカード窓口」.",
-          iconType: "location",
-          color: "blue",
-        },
-        {
-          id: "step-3",
-          title: "Điền đơn đặt lại mã PIN",
-          description:
-            "Tại quầy, bạn sẽ nhận được đơn đặt lại mã PIN. Điền và nộp cùng thẻ My Number. Nhân viên sẽ xác minh danh tính của bạn.",
-          iconType: "document",
-          color: "emerald",
-          actionText: "Lấy đơn tại quầy tầng 6",
-        },
-        {
-          id: "step-4",
-          title: "Đặt mã PIN mới",
-          description:
-            "Sau khi xác minh, bạn sẽ đặt mã PIN mới ngay tại chỗ bằng bàn phím. Thẻ sẽ được trả lại ngay sau đó.",
-          iconType: "document",
-          color: "rose",
-        },
-      ],
-      interactivePrompt: {
-        question: "Bạn có biết mình cần đặt lại mã PIN nào không?",
-        subtitle:
-          "Thẻ My Number có hai mã PIN: mã PIN 4 chữ số (cho dịch vụ cửa hàng tiện lợi) và mã PIN chữ ký 6-16 chữ số (cho e-Tax, đăng ký trực tuyến). Nhân viên có thể giúp bạn đặt lại một hoặc cả hai.",
-        iconType: "help",
-        yesText: "Có, tôi biết",
-        noText: "Không chắc, tôi cần giúp",
-      },
-    },
-    unsupported: {
-      intent: "Yêu cầu không được hỗ trợ",
-      welcomeMessage:
-        "Xin lỗi, tôi không hiểu yêu cầu của bạn. Tôi có thể giúp bạn thay đổi địa chỉ hoặc đặt lại mã PIN thẻ My Number. Vui lòng thử lại.",
+        "申し訳ございません。住所変更、マイナンバーカードの暗証番号リセット、児童手当の申請、住民票の取得についてお手伝いできます。もう一度お試しください。",
       steps: [],
       isUnsupported: true,
     },
@@ -746,51 +558,105 @@ const KNOWLEDGE_BASE: Record<SupportedLang, KnowledgeBase> = {
         noText: "थाहा छैन, मद्दत चाहिन्छ",
       },
     },
+    child_subsidy: {
+      intent: "बाल भत्ता आवेदन (児童手当)",
+      welcomeMessage:
+        "म तपाईंलाई बाल भत्ता (児童手当) को लागि आवेदन गर्न मद्दत गर्न सक्छु। यो १५ वर्ष मुनिका बालबालिका पाल्ने परिवारहरूको लागि मासिक भत्ता हो। कृपया तलका चरणहरू पालना गर्नुहोस्।",
+      steps: [
+        {
+          id: "step-1",
+          title: "आवश्यक कागजातहरू तयार गर्नुहोस्",
+          description:
+            "तपाईंलाई चाहिन्छ: स्वास्थ्य बीमा कार्ड, बैंक पासबुक वा कार्ड (भत्ता जम्मा हुने खाता), माइ नम्बर कार्ड वा सूचना कार्ड, र बच्चाको स्वास्थ्य बीमा कार्ड (फरक भएमा)।",
+          iconType: "document",
+          color: "amber",
+        },
+        {
+          id: "step-2",
+          title: "आवेदन फारम भर्नुहोस्",
+          description:
+            "२ औं तल्लाको बालबालिका र परिवार काउन्टरमा बाल भत्ता मान्यता अनुरोध फारम (児童手当認定請求書) लिनुहोस्। आफ्नो विवरण, बच्चाको जानकारी र बैंक खाता भर्नुहोस्।",
+          iconType: "document",
+          color: "blue",
+          actionText: "२ औं तल्लाको काउन्टरमा फारम लिनुहोस्",
+        },
+        {
+          id: "step-3",
+          title: "२ औं तल्ला — बालबालिका र परिवार विभागमा पेश गर्नुहोस्",
+          description:
+            "भरिएको आवेदन फारम र सबै आवश्यक कागजातहरू २ औं तल्लाको बालबालिका र परिवार विभाग (子ども・家庭課) मा लैजानुहोस्। प्रशोधनमा करिब १५ मिनेट लाग्छ।",
+          iconType: "location",
+          color: "emerald",
+        },
+      ],
+      interactivePrompt: {
+        question: "के तपाईं भर्खरै किता-कुमा बसाइँ सर्नुभएको हो?",
+        subtitle:
+          "यदि भर्खरै सर्नुभएको हो भने, बसाइँ सरेको मितिबाट १५ दिन भित्र आवेदन गर्नुपर्छ नत्र एक महिनाको भुक्तानी छुट्न सक्छ। हामी ठेगाना परिवर्तनमा पनि सँगसँगै मद्दत गर्न सक्छौं।",
+        iconType: "help",
+        yesText: "हो, भर्खरै सरेँ",
+        noText: "होइन, पहिलेदेखि बस्छु",
+      },
+    },
+    resident_certificate: {
+      intent: "बासिन्दा प्रमाणपत्र (住民票)",
+      welcomeMessage:
+        "म तपाईंलाई बासिन्दा प्रमाणपत्र (住民票の写し) को प्रतिलिपि प्राप्त गर्न मद्दत गर्न सक्छु। यो सबैभन्दा सामान्य अनुरोधहरू मध्ये एक हो। कृपया तलका चरणहरू पालना गर्नुहोस्।",
+      steps: [
+        {
+          id: "step-1",
+          title: "परिचयपत्र ल्याउनुहोस्",
+          description:
+            "माइ नम्बर कार्ड, सवारी चालक अनुमतिपत्र, राहदानी वा बसोबास कार्ड (在留カード) जस्ता फोटो सहितको वैध परिचयपत्र चाहिन्छ। अर्काको तर्फबाट अनुरोध गर्दा अख्तियारनामा (委任状) पनि चाहिन्छ।",
+          iconType: "document",
+          color: "amber",
+        },
+        {
+          id: "step-2",
+          title: "अनुरोध फारम भर्नुहोस्",
+          description:
+            "पहिलो तल्लाको सूचना डेस्कमा बासिन्दा प्रमाणपत्र अनुरोध फारम (住民票の写し等交付申請書) लिनुहोस्। कुन जानकारी समावेश गर्ने (परिवारका सदस्य, माइ नम्बर आदि) छान्नुहोस्।",
+          iconType: "document",
+          color: "blue",
+          actionText: "सूचना डेस्कमा फारम लिनुहोस्",
+        },
+        {
+          id: "step-3",
+          title: "विन्डो २ मा पेश गर्नुहोस् — प्रमाणपत्र काउन्टर",
+          description:
+            "भरिएको फारम र परिचयपत्र पहिलो तल्लाको विन्डो २ (प्रमाणपत्र जारी काउन्टर) मा पेश गर्नुहोस्। शुल्क प्रति प्रतिलिपि ¥३०० हो। नगद मात्र स्वीकृत छ।",
+          iconType: "location",
+          color: "emerald",
+        },
+      ],
+      interactivePrompt: {
+        question: "के तपाईंसँग माइ नम्बर कार्ड छ?",
+        subtitle:
+          "माइ नम्बर कार्ड भएमा, कन्भिनियन्स स्टोर (सेभन-इलेभन, लसन, फ्यामिली मार्ट) को मल्टिफंक्शन कपियरबाट पनि बासिन्दा प्रमाणपत्र लिन सकिन्छ — बिहान ६:३० देखि राति ११:०० सम्म, शनिबार आइतबार पनि। शुल्क ¥२०० मात्र हो।",
+        iconType: "card",
+        yesText: "छ, मसँग छ",
+        noText: "छैन",
+      },
+    },
     unsupported: {
       intent: "समर्थित नभएको अनुरोध",
       welcomeMessage:
-        "माफ गर्नुहोस्, तपाईंको अनुरोध बुझ्न सकिएन। म ठेगाना परिवर्तन वा माइ नम्बर कार्ड PIN रिसेटमा मद्दत गर्न सक्छु। कृपया फेरि प्रयास गर्नुहोस्।",
+        "माफ गर्नुहोस्, तपाईंको अनुरोध बुझ्न सकिएन। म ठेगाना परिवर्तन, माइ नम्बर कार्ड PIN रिसेट, बाल भत्ता आवेदन, वा बासिन्दा प्रमाणपत्रमा मद्दत गर्न सक्छु। कृपया फेरि प्रयास गर्नुहोस्।",
       steps: [],
       isUnsupported: true,
     },
   },
 };
 
-const ADDRESS_KEYWORDS: Record<SupportedLang, string[]> = {
-  en: ["address", "change address", "moved", "moving", "move", "kita-ku", "kita ku", "kitaku", "new resident", "relocat", "transfer", "register", "registration"],
-  ja: ["転入", "転出", "住所変更", "引っ越し", "引越", "住所", "北区"],
-  zh: ["地址", "搬家", "搬入", "迁入", "迁出", "转入", "北区", "住址"],
-  ko: ["주소", "전입", "전출", "이사", "주소변경", "기타구"],
-  vi: ["địa chỉ", "chuyển", "chuyển đến", "chuyển đi", "đăng ký", "kita"],
-  ne: ["ठेगाना", "बसाइँ", "सराइ", "दर्ता", "किता"],
-};
+export const INTENT_DESCRIPTIONS = [
+  { key: "change_address", description: "The user wants to change/register their address, report moving in or out, relocate to Kita-ku, or do residence registration." },
+  { key: "mynumber_pin_reset", description: "The user wants to reset their My Number Card PIN, forgot their password/PIN, or has issues with their My Number Card authentication." },
+  { key: "child_subsidy", description: "The user wants to apply for child subsidy/allowance (児童手当), receive financial support for raising children, or ask about child-related benefits." },
+  { key: "resident_certificate", description: "The user wants to get a copy of their resident certificate (住民票), proof of residence, or a certified copy of their resident record." },
+  { key: "unsupported", description: "The request does not match any supported ward office procedure." },
+] as const;
 
-const MYNUMBER_PIN_KEYWORDS: Record<SupportedLang, string[]> = {
-  en: ["my number", "mynumber", "pin", "pin reset", "forgot pin", "reset pin", "password", "forgot password", "card pin", "number card"],
-  ja: ["マイナンバー", "暗証番号", "パスワード", "ピン", "リセット", "忘れ"],
-  zh: ["密码", "重置", "my number", "忘记密码", "重设"],
-  ko: ["마이넘버", "비밀번호", "재설정", "핀", "잊어"],
-  vi: ["my number", "mã pin", "đặt lại", "quên mã", "mật khẩu"],
-  ne: ["माइ नम्बर", "पिन", "रिसेट", "बिर्सेको", "पासवर्ड"],
-};
-
-export function matchQuery(transcript: string, lang: SupportedLang = "en"): IntentMatch {
-  const lower = transcript.toLowerCase();
+export function getIntent(key: string, lang: SupportedLang): IntentMatch {
   const kb = KNOWLEDGE_BASE[lang];
-
-  const allPinKeywords = Object.values(MYNUMBER_PIN_KEYWORDS).flat();
-  const isPinReset = allPinKeywords.some((kw) => lower.includes(kw.toLowerCase()));
-
-  if (isPinReset) {
-    return kb["mynumber_pin_reset"];
-  }
-
-  const allAddressKeywords = Object.values(ADDRESS_KEYWORDS).flat();
-  const isAddressChange = allAddressKeywords.some((kw) => lower.includes(kw.toLowerCase()));
-
-  if (isAddressChange) {
-    return kb["change_address"];
-  }
-
-  return kb["unsupported"];
+  return kb[key] ?? kb["unsupported"];
 }

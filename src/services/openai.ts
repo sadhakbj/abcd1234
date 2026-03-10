@@ -22,6 +22,22 @@ export async function transcribeAudio(
   return data.text || "";
 }
 
+export async function classifyIntent(transcript: string): Promise<string> {
+  const res = await fetch("/api/openai/classify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transcript }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Classification failed (${res.status})`);
+  }
+
+  const data = await res.json();
+  return data.intent || "unsupported";
+}
+
 export async function generateSpeech(text: string): Promise<ArrayBuffer> {
   const res = await fetch("/api/openai/tts", {
     method: "POST",

@@ -19,32 +19,16 @@ export function OrbitHero() {
         <Mascot className="w-36 h-36 drop-shadow-lg" />
       </div>
 
-      {/* Ring 1 — fast inner orbit (10s) */}
-      <div className="orbit-flag" style={{ animation: "orbit-1 10s linear infinite" }}>
+      {/* 3 flags evenly spaced on one orbit */}
+      <div className="orbit-flag" style={{ animation: "orbit-2 14s linear infinite" }}>
         <span className="orbit-flag-label">Welcome!</span>
         <span className="orbit-flag-emoji">🇬🇧</span>
       </div>
-      <div className="orbit-flag" style={{ animation: "orbit-1 10s linear infinite", animationDelay: "-5s" }}>
+      <div className="orbit-flag" style={{ animation: "orbit-2 14s linear infinite", animationDelay: "-4.67s" }}>
         <span className="orbit-flag-label">いらっしゃいませ</span>
         <span className="orbit-flag-emoji">🇯🇵</span>
       </div>
-
-      {/* Ring 2 — medium orbit (16s) */}
-      <div className="orbit-flag" style={{ animation: "orbit-2 16s linear infinite" }}>
-        <span className="orbit-flag-label">欢迎光临</span>
-        <span className="orbit-flag-emoji">🇨🇳</span>
-      </div>
-      <div className="orbit-flag" style={{ animation: "orbit-2 16s linear infinite", animationDelay: "-8s" }}>
-        <span className="orbit-flag-label">환영합니다</span>
-        <span className="orbit-flag-emoji">🇰🇷</span>
-      </div>
-
-      {/* Ring 3 — slow outer orbit (22s) */}
-      <div className="orbit-flag" style={{ animation: "orbit-3 22s linear infinite" }}>
-        <span className="orbit-flag-label">Xin chào</span>
-        <span className="orbit-flag-emoji">🇻🇳</span>
-      </div>
-      <div className="orbit-flag" style={{ animation: "orbit-3 22s linear infinite", animationDelay: "-11s" }}>
+      <div className="orbit-flag" style={{ animation: "orbit-2 14s linear infinite", animationDelay: "-9.33s" }}>
         <span className="orbit-flag-label">स्वागत छ</span>
         <span className="orbit-flag-emoji">🇳🇵</span>
       </div>

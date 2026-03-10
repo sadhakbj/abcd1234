@@ -6,9 +6,6 @@ import type { SupportedLang } from "@/lib/knowledgeBase";
 const LANG_CODES: Record<SupportedLang, string> = {
   en: "en-US",
   ja: "ja-JP",
-  zh: "zh-CN",
-  ko: "ko-KR",
-  vi: "vi-VN",
   ne: "ne-NP",
 };
 
@@ -22,6 +19,10 @@ export interface SpeechRecognitionHook {
 export function useSpeechRecognition(): SpeechRecognitionHook {
   const [liveTranscript, setLiveTranscript] = useState("");
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // Text committed from previous recognition sessions (survives auto-restarts)
+  const committedRef = useRef("");
+  // Always mirrors the latest full text (committed + current session)
+  const fullTextRef = useRef("");
 
   const stopRecognition = useCallback(() => {
     if (recognitionRef.current) {
@@ -32,6 +33,8 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
 
   const startRecognition = useCallback((lang: SupportedLang) => {
     stopRecognition();
+    committedRef.current = "";
+    fullTextRef.current = "";
 
     const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Ctor) return;
@@ -43,16 +46,29 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let sessionFinal = "";
       let interim = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        interim += event.results[i][0].transcript;
+
+      for (let i = 0; i < event.results.length; i++) {
+        const text = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          sessionFinal += text;
+        } else {
+          interim += text;
+        }
       }
-      if (interim) setLiveTranscript(interim);
+
+      const full = committedRef.current + sessionFinal + interim;
+      fullTextRef.current = full;
+      if (full) setLiveTranscript(full);
     };
 
     recognition.onerror = () => { /* non-critical */ };
+
     recognition.onend = () => {
       if (recognitionRef.current === recognition) {
+        // Persist everything spoken so far before the session restarts
+        committedRef.current = fullTextRef.current;
         try { recognition.start(); } catch { /* ignore */ }
       }
     };
@@ -61,7 +77,11 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     recognition.start();
   }, [stopRecognition]);
 
-  const resetTranscript = useCallback(() => setLiveTranscript(""), []);
+  const resetTranscript = useCallback(() => {
+    committedRef.current = "";
+    fullTextRef.current = "";
+    setLiveTranscript("");
+  }, []);
 
   return { startRecognition, stopRecognition, liveTranscript, resetTranscript };
 }
